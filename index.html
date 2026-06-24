@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nexus Invoice Splitter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- libs (browser runtime) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<style>
+  :root{
+    --ink:#0b1220; --slate:#111827; --emerald:#059669; --emerald-d:#047857;
+    --paper:#ffffff; --panel:#f7f9fb; --rule:#e5e7eb; --rule-d:#d1d5db;
+    --muted:#64748b; --label:#475569; --amber:#b45309;
+    --shadow:0 1px 2px rgba(16,24,40,.05), 0 8px 24px -12px rgba(16,24,40,.18);
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    color:var(--slate); background:
+      radial-gradient(1200px 500px at 50% -200px, #ecfdf5 0%, rgba(236,253,245,0) 60%),
+      var(--panel);
+    -webkit-font-smoothing:antialiased; line-height:1.5;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:32px 20px 140px}
+
+  /* ---- masthead ---- */
+  .mast{display:flex; align-items:center; gap:14px; margin-bottom:6px}
+  .mark{display:flex; align-items:center; gap:9px}
+  .mark .nx{
+    font-family:"Space Grotesk",sans-serif; font-weight:700; letter-spacing:.06em;
+    font-size:15px; color:var(--slate); display:flex; align-items:center; gap:5px;
+  }
+  .mark .arrow{width:16px;height:9px;background:var(--emerald);
+    clip-path:polygon(0 30%,62% 30%,62% 0,100% 50%,62% 100%,62% 70%,0 70%);}
+  .mast h1{
+    font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:15px; margin:0;
+    color:var(--muted); letter-spacing:.01em;
+  }
+  .mast h1 b{color:var(--slate); font-weight:600}
+  .lede{
+    font-family:"Space Grotesk",sans-serif; font-weight:600; letter-spacing:-.02em;
+    font-size:clamp(28px,5vw,42px); line-height:1.05; margin:18px 0 8px; color:var(--ink);
+  }
+  .lede .g{color:var(--emerald)}
+  .sub{color:var(--muted); max-width:60ch; margin:0 0 26px; font-size:15px}
+
+  /* ---- intake bay ---- */
+  .bay{
+    position:relative; background:var(--paper); border-radius:var(--r);
+    border:1.5px dashed var(--rule-d); box-shadow:var(--shadow);
+    padding:46px 28px; text-align:center; transition:border-color .15s, background .15s, transform .05s;
+    cursor:pointer;
+  }
+  .bay::before,.bay::after{ /* bay-door rails */
+    content:""; position:absolute; top:14px; bottom:14px; width:6px; border-radius:6px;
+    background:repeating-linear-gradient(180deg,var(--rule) 0 8px, transparent 8px 16px);
+  }
+  .bay::before{left:14px} .bay::after{right:14px}
+  .bay:hover{border-color:var(--emerald)}
+  .bay.drag{border-color:var(--emerald); background:#f0fdf4; transform:translateY(-1px)}
+  .bay .ico{
+    width:54px;height:54px;margin:0 auto 14px; border-radius:13px; display:grid; place-items:center;
+    background:linear-gradient(180deg,#10b981,#059669); color:#fff; box-shadow:0 6px 16px -6px rgba(5,150,105,.7);
+  }
+  .bay .ico svg{width:26px;height:26px}
+  .bay h2{font-family:"Space Grotesk",sans-serif; font-size:19px; margin:0 0 4px; color:var(--slate)}
+  .bay p{margin:0; color:var(--muted); font-size:14px}
+  .bay .pick{
+    display:inline-block; margin-top:16px; font-weight:600; font-size:14px;
+    color:var(--emerald-d);
+  }
+  input[type=file]{display:none}
+
+  /* ---- progress ---- */
+  .progress{display:none; margin-top:22px; background:var(--paper); border:1px solid var(--rule);
+    border-radius:var(--r); box-shadow:var(--shadow); padding:20px 22px}
+  .progress.on{display:block}
+  .progress .row{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+  .progress .stage{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:15px}
+  .progress .pct{font-family:"JetBrains Mono",monospace; font-size:13px; color:var(--muted)}
+  .bar{height:8px; border-radius:99px; background:var(--rule); overflow:hidden; margin-top:12px}
+  .bar > i{display:block; height:100%; width:0; border-radius:99px;
+    background:linear-gradient(90deg,#10b981,#059669); transition:width .25s ease}
+  .progress .detail{margin-top:10px; font-size:13px; color:var(--muted);
+    font-family:"JetBrains Mono",monospace}
+
+  /* ---- manifest ---- */
+  .manifest{display:none; margin-top:26px}
+  .manifest.on{display:block}
+  .carrier{margin-bottom:18px; background:var(--paper); border:1px solid var(--rule);
+    border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden}
+  .carrier > header{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:13px 18px; border-bottom:1px solid var(--rule); background:var(--panel);
+  }
+  .carrier > header .name{font-family:"Space Grotesk",sans-serif; font-weight:600; font-size:15px}
+  .carrier > header .count{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--muted)}
+  .inv{
+    display:flex; align-items:center; gap:14px; padding:12px 18px; border-bottom:1px solid var(--rule);
+    position:relative;
+  }
+  .inv:last-child{border-bottom:0}
+  .inv::before{content:""; position:absolute; left:0; top:8px; bottom:8px; width:3px;
+    border-radius:0 3px 3px 0; background:var(--emerald)}
+  .inv .num{font-family:"JetBrains Mono",monospace; font-weight:700; font-size:14px; color:var(--slate);
+    min-width:128px}
+  .inv .meta{flex:1; min-width:0; color:var(--muted); font-size:13px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .inv .unit{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--label);
+    background:var(--panel); border:1px solid var(--rule); padding:2px 8px; border-radius:99px; white-space:nowrap}
+  .inv .pg{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--muted); white-space:nowrap}
+  .inv .dl{appearance:none; border:1px solid var(--rule); background:#fff; color:var(--emerald-d);
+    width:34px;height:34px;border-radius:9px; cursor:pointer; display:grid; place-items:center;
+    transition:background .12s,border-color .12s}
+  .inv .dl:hover{background:#ecfdf5; border-color:var(--emerald)}
+  .inv .dl svg{width:17px;height:17px}
+
+  /* ---- sticky action bar ---- */
+  .actions{position:fixed; left:0; right:0; bottom:0; display:none;
+    background:rgba(255,255,255,.9); backdrop-filter:blur(8px); border-top:1px solid var(--rule)}
+  .actions.on{display:block}
+  .actions .inner{max-width:960px; margin:0 auto; padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:14px}
+  .actions .tally{font-size:14px; color:var(--slate)}
+  .actions .tally b{font-family:"JetBrains Mono",monospace}
+  .btn{appearance:none; border:0; cursor:pointer; font-weight:600; font-size:15px;
+    font-family:"Space Grotesk",sans-serif; color:#fff; background:var(--emerald);
+    padding:12px 20px; border-radius:11px; display:inline-flex; align-items:center; gap:9px;
+    box-shadow:0 8px 18px -8px rgba(5,150,105,.8); transition:background .12s, transform .05s}
+  .btn:hover{background:var(--emerald-d)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:#fff; color:var(--slate); border:1px solid var(--rule); box-shadow:none}
+  .btn svg{width:17px;height:17px}
+
+  /* ---- error / note ---- */
+  .note{display:none; margin-top:18px; padding:14px 16px; border-radius:11px; font-size:14px}
+  .note.on{display:block}
+  .note.err{background:#fef2f2; border:1px solid #fecaca; color:#b91c1c}
+
+  .foothint{margin-top:30px; color:var(--muted); font-size:12.5px; text-align:center;
+    font-family:"JetBrains Mono",monospace}
+
+  :focus-visible{outline:2px solid var(--emerald); outline-offset:2px; border-radius:6px}
+  @media (max-width:560px){
+    .inv .meta{display:none}
+    .inv .num{min-width:96px; font-size:13px}
+    .actions .inner{flex-direction:column; align-items:stretch}
+    .actions .tally{text-align:center}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mast">
+    <span class="mark"><span class="nx">NE<span class="arrow"></span>US</span></span>
+    <h1><b>Nexus lane LLC</b> · fleet tooling</h1>
+  </div>
+
+  <h1 class="lede">Split a carrier statement into <span class="g">one invoice per truck.</span></h1>
+  <p class="sub">Drop a batch statement PDF. Each invoice is read by its number and unit, then carved out
+    as its own file — exact same layout as the original, organized by carrier. Everything runs in your
+    browser; nothing is uploaded anywhere.</p>
+
+  <!-- intake -->
+  <div class="bay" id="bay" tabindex="0" role="button" aria-label="Add statement PDFs">
+    <div class="ico" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      </svg>
+    </div>
+    <h2>Drop carrier statements here</h2>
+    <p>PDF batch statements from BigShop · multiple files OK</p>
+    <span class="pick">or choose files</span>
+    <input type="file" id="file" accept="application/pdf,.pdf" multiple />
+  </div>
+
+  <!-- progress -->
+  <div class="progress" id="prog">
+    <div class="row"><span class="stage" id="stage">Reading headers…</span><span class="pct" id="pct">0%</span></div>
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="detail" id="detail"></div>
+  </div>
+
+  <!-- notes / errors -->
+  <div class="note err" id="err"></div>
+
+  <!-- manifest -->
+  <div class="manifest" id="manifest"></div>
+
+  <div class="foothint" id="hint" style="display:none">files stay on this device · powered by tesseract + pdf-lib</div>
+</div>
+
+<!-- sticky actions -->
+<div class="actions" id="actions">
+  <div class="inner">
+    <div class="tally" id="tally"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn ghost" id="again">Start over</button>
+      <button class="btn" id="dlall">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M5 21h14"/></svg>
+        Download all (.zip)
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { PDFDocument } = PDFLib;
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const $ = s => document.querySelector(s);
+const bay=$("#bay"), fileInput=$("#file"), prog=$("#prog"), stageEl=$("#stage"),
+      pctEl=$("#pct"), bar=$("#barfill"), detail=$("#detail"), manifest=$("#manifest"),
+      actions=$("#actions"), tally=$("#tally"), errBox=$("#err"), hint=$("#hint");
+
+let RESULTS = [];   // [{carrier, inv, unit, vehicle, pages, bytes(Uint8Array), filename}]
+let worker = null;
+
+// ---------- helpers ----------
+const sanitize = s => (s||"").replace(/[\/\\:*?"<>|]+/g,"").replace(/\s+/g," ").trim();
+function setProgress(stage, pct, det){
+  prog.classList.add("on");
+  stageEl.textContent = stage;
+  pctEl.textContent = Math.round(pct)+"%";
+  bar.style.width = pct+"%";
+  if(det!==undefined) detail.textContent = det;
+}
+function showError(msg){ errBox.textContent = msg; errBox.classList.add("on"); }
+function clearError(){ errBox.classList.remove("on"); errBox.textContent=""; }
+
+// pull invoice number, unit, carrier, vehicle from an OCR'd header strip
+function parseHeader(text){
+  const t = text.replace(/[|]/g," ");
+  let inv=null, m;
+  if((m = t.match(/\bINV[\s\-]?(\d{3,6})\b/i)))      inv = "INV-"+m[1];
+  else if((m = t.match(/\bSO[\s\-]?0*(\d{1,9})\b/i))) inv = "SO-"+String(m[1]).padStart(8,"0");
+
+  let unit=null;
+  if((m = t.match(/Unit\s*#?\s*:?\s*([A-Za-z0-9\-]{1,20})/i))) unit = m[1];
+
+  // carrier: (a) the name printed before the statement period "(YYYY-MM-DD to …)",
+  //          (b) the line right after CUSTOMER, (c) the billing email domain.
+  let carrier=null;
+  if((m = t.match(/([A-Za-z0-9 .,&'\-]{3,40})\s*\(\s*\d{4}-\d{2}-\d{2}\s+to/i))) carrier = m[1].trim();
+  if(!carrier && (m = t.match(/CUSTOMER\s*[\r\n]+\s*([A-Za-z0-9 .,&'\-]{2,40})/i))) carrier = m[1].trim();
+  if(!carrier && (m = t.match(/@([a-z0-9.\-]+)\.[a-z]{2,}/i)))
+    carrier = m[1].replace(/[.\-]+/g," ").replace(/\b\w/g, c=>c.toUpperCase()).trim();
+
+  // vehicle: year + make + up to two model words, kept on a single line (no newline bleed)
+  let vehicle=null;
+  if((m = t.match(/((?:19|20)\d{2}[ \t]+[A-Z][A-Za-z]+(?:[ \t]+[A-Za-z]+){0,2})/))) vehicle = m[1].trim();
+
+  return {inv, unit, carrier, vehicle};
+}
+
+// render the top strip of a pdf.js page to a canvas for OCR
+async function headerStripCanvas(page){
+  const vp = page.getViewport({scale:1});
+  const targetW = 1300;
+  const scale = targetW / vp.width;
+  const sv = page.getViewport({scale});
+  const stripH = Math.round(sv.height * 0.27);     // top ~27%
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(sv.width); canvas.height = stripH;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle="#fff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  await page.render({canvasContext:ctx, viewport:sv}).promise;  // clipped by canvas height
+  return canvas;
+}
+
+// ---------- main pipeline ----------
+async function processFiles(files){
+  clearError();
+  const pdfs = [...files].filter(f => /pdf$/i.test(f.name) || f.type==="application/pdf");
+  if(!pdfs.length){ showError("No PDF files found. Drop a BigShop statement PDF (.pdf)."); return; }
+
+  bay.style.display="none"; manifest.classList.remove("on"); manifest.innerHTML="";
+  actions.classList.remove("on"); RESULTS=[];
+
+  setProgress("Starting OCR engine…", 2, "");
+  if(!worker){
+    worker = await Tesseract.createWorker("eng");
+    await worker.setParameters({ tessedit_pageseg_mode: "6" }); // assume a block of text
+  }
+
+  // count total pages for progress
+  let docs=[], totalPages=0;
+  for(const f of pdfs){
+    const buf = await f.arrayBuffer();
+    const jsDoc = await pdfjsLib.getDocument({data: buf.slice(0)}).promise;
+    const libDoc = await PDFDocument.load(buf);
+    docs.push({name:f.name, jsDoc, libDoc});
+    totalPages += jsDoc.numPages;
+  }
+
+  let done=0;
+  for(const d of docs){
+    const n = d.jsDoc.numPages;
+    let fileCarrier=null;
+    // 1) OCR each page header -> per-page {inv,unit,carrier,vehicle}
+    const pageInfo=[];
+    for(let i=1;i<=n;i++){
+      const page = await d.jsDoc.getPage(i);
+      const canvas = await headerStripCanvas(page);
+      const { data } = await worker.recognize(canvas);
+      const info = parseHeader(data.text||"");
+      if(info.carrier && !fileCarrier) fileCarrier = sanitize(info.carrier);
+      pageInfo.push(info);
+      done++;
+      setProgress("Reading headers", 6 + (done/totalPages)*74,
+        `${d.name} — page ${i} of ${n}${info.inv? "  ·  "+info.inv : ""}`);
+      await new Promise(r=>setTimeout(r)); // yield to UI
+    }
+    if(!fileCarrier) fileCarrier = sanitize(d.name.replace(/\.pdf$/i,"")) || "Statement";
+
+    // 2) group consecutive pages by invoice number
+    const groups=[]; let cur=null;
+    pageInfo.forEach((info, idx)=>{
+      if(info.inv && (!cur || info.inv!==cur.inv)){
+        cur = {inv:info.inv, unit:info.unit, vehicle:info.vehicle, pages:[idx]};
+        groups.push(cur);
+      } else if(cur){
+        cur.pages.push(idx);
+        if(!cur.unit && info.unit) cur.unit=info.unit;
+        if(!cur.vehicle && info.vehicle) cur.vehicle=info.vehicle;
+      } else {
+        cur = {inv:null, unit:info.unit, vehicle:info.vehicle, pages:[idx]};
+        groups.push(cur);
+      }
+    });
+
+    // 3) split losslessly (copy original pages)
+    for(let gi=0; gi<groups.length; gi++){
+      const g = groups[gi];
+      setProgress("Carving invoices", 80 + ((gi+1)/groups.length)*18,
+        `${fileCarrier} — ${g.inv||"unnumbered"}`);
+      const out = await PDFDocument.create();
+      const copied = await out.copyPages(d.libDoc, g.pages);
+      copied.forEach(p=>out.addPage(p));
+      const bytes = await out.save();
+      const invName = g.inv || `Invoice-${String(gi+1).padStart(3,"0")}`;
+      const unit = g.unit || "NA";
+      RESULTS.push({
+        carrier: fileCarrier, inv: invName, unit, vehicle: g.vehicle,
+        pages: g.pages.length, bytes,
+        filename: `${invName}_Unit-${sanitize(unit)}.pdf`
+      });
+    }
+  }
+
+  setProgress("Done", 100, `${RESULTS.length} invoices ready`);
+  setTimeout(()=>prog.classList.remove("on"), 500);
+  renderManifest();
+}
+
+// ---------- render results ----------
+function renderManifest(){
+  if(!RESULTS.length){ showError("Couldn't find any invoices. Is this a Nexus/BigShop statement PDF?"); bay.style.display=""; return; }
+  // group by carrier
+  const byCarrier={};
+  RESULTS.forEach((r,i)=>{ (byCarrier[r.carrier] ||= []).push({...r, idx:i}); });
+
+  manifest.innerHTML="";
+  Object.keys(byCarrier).sort().forEach(carrier=>{
+    const list = byCarrier[carrier];
+    const sec = document.createElement("section");
+    sec.className="carrier";
+    sec.innerHTML = `<header><span class="name">${carrier}</span>
+      <span class="count">${list.length} invoice${list.length>1?"s":""}</span></header>`;
+    list.forEach(r=>{
+      const row=document.createElement("div"); row.className="inv";
+      row.innerHTML = `
+        <span class="num">${r.inv}</span>
+        <span class="meta">${r.vehicle? r.vehicle : ""}</span>
+        <span class="unit">Unit ${r.unit}</span>
+        <span class="pg">${r.pages}p</span>
+        <button class="dl" title="Download ${r.filename}" aria-label="Download ${r.filename}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M5 21h14"/></svg>
+        </button>`;
+      row.querySelector(".dl").onclick = ()=> downloadOne(r);
+      sec.appendChild(row);
+    });
+    manifest.appendChild(sec);
+  });
+  manifest.classList.add("on");
+  hint.style.display="";
+
+  const carriers = Object.keys(byCarrier).length;
+  tally.innerHTML = `<b>${RESULTS.length}</b> invoices · <b>${carriers}</b> carrier${carriers>1?"s":""}`;
+  actions.classList.add("on");
+}
+
+function blobFrom(bytes){ return new Blob([bytes], {type:"application/pdf"}); }
+function triggerDownload(blob, name){
+  const url=URL.createObjectURL(blob); const a=document.createElement("a");
+  a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1500);
+}
+function downloadOne(r){ triggerDownload(blobFrom(r.bytes), r.filename); }
+
+async function downloadAll(){
+  const zip = new JSZip();
+  RESULTS.forEach(r=>{
+    zip.folder(r.carrier).file(r.filename, r.bytes);
+  });
+  setProgress("Zipping", 60, "building archive…");
+  const blob = await zip.generateAsync({type:"blob"}, m=>{
+    setProgress("Zipping", 60+m.percent*0.4, "building archive…");
+  });
+  prog.classList.remove("on");
+  triggerDownload(blob, "Nexus_Separate_Invoices.zip");
+}
+
+function reset(){
+  RESULTS=[]; manifest.innerHTML=""; manifest.classList.remove("on");
+  actions.classList.remove("on"); clearError(); bay.style.display="";
+  fileInput.value=""; hint.style.display="none";
+}
+
+// ---------- events ----------
+bay.addEventListener("click", ()=>fileInput.click());
+bay.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault(); fileInput.click();} });
+fileInput.addEventListener("change", e=>{ if(e.target.files.length) processFiles(e.target.files); });
+["dragenter","dragover"].forEach(ev=>bay.addEventListener(ev,e=>{e.preventDefault(); bay.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>bay.addEventListener(ev,e=>{e.preventDefault(); bay.classList.remove("drag");}));
+bay.addEventListener("drop", e=>{ const f=e.dataTransfer.files; if(f&&f.length) processFiles(f); });
+$("#dlall").addEventListener("click", downloadAll);
+$("#again").addEventListener("click", reset);
+window.addEventListener("dragover", e=>e.preventDefault());
+window.addEventListener("drop", e=>e.preventDefault());
+</script>
+</body>
+</html>
