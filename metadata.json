@@ -1,0 +1,6 @@
+{
+  "name": "Invoice PDF Splitter",
+  "description": "Upload up to 10 consolidated invoice PDFs, automatically split them into correctly named individual files organized into subfolders, and download them in a single structured ZIP bundle.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
