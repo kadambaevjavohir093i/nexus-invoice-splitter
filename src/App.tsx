@@ -100,17 +100,17 @@ export default function App() {
 
     return invoicesList.map(inv => {
       if (inv.isStatement) {
-        return inv; // Keep statement's original filename
+        return { ...inv, filename: 'Statement.pdf' };
       }
 
       const unit = inv.unitNumber ? inv.unitNumber.trim() : '';
-      const cleanInvNum = inv.invoiceNumber.toLowerCase().replace(/^inv-/i, '').trim();
-      
+
       let baseFilename = '';
       if (!unit) {
         baseFilename = `${inv.invoiceNumber}.pdf`;
       } else if (unitCounts[unit] > 1) {
-        baseFilename = `${unit}inv-${cleanInvNum}.pdf`;
+        // Same unit appears more than once — append the invoice number to disambiguate
+        baseFilename = `${unit}_${inv.invoiceNumber}.pdf`;
       } else {
         baseFilename = `${unit}.pdf`;
       }
@@ -124,6 +124,17 @@ export default function App() {
         filename: cleanedName
       };
     });
+  };
+
+  // Carrier folder name for the ZIP: first word of the customer, uppercased
+  // (e.g. "Gurman Trucking" -> "GURMAN"). Falls back to the source file name.
+  const carrierOf = (file: UploadedFile): string => {
+    const customer =
+      file.invoices.find(inv => inv.isStatement && inv.customer)?.customer ||
+      file.invoices.find(inv => inv.customer && inv.customer !== 'Document Page')?.customer ||
+      file.name.replace(/\.pdf$/i, '');
+    const firstWord = customer.trim().split(/\s+/)[0] || 'CARRIER';
+    return firstWord.toUpperCase().replace(/[^A-Z0-9\-]/g, '') || 'CARRIER';
   };
 
   // Compute live filenames for active file
@@ -428,18 +439,16 @@ export default function App() {
     }
   };
 
-  // Zip selected split invoices with corresponding parent subfolders inside ZIP
+  // Zip selected split invoices: ONE zip with one folder per carrier (e.g. GURMAN/1215.pdf).
+  // Files from every uploaded PDF belonging to the same carrier are merged into that folder.
   const downloadSelectedAsZip = async () => {
-    const filesWithSelectedInvoices = uploadedFiles.map(file => {
-      const computed = computeInvoicesForFile(file.invoices, stripSpecialChars);
-      const selected = computed.filter(inv => inv.isSelected);
-      return {
-        file,
-        selected
-      };
-    }).filter(item => item.selected.length > 0);
+    const selections = uploadedFiles.map(file => ({
+      file,
+      carrier: carrierOf(file),
+      selected: file.invoices.filter(inv => inv.isSelected)
+    })).filter(item => item.selected.length > 0);
 
-    if (filesWithSelectedInvoices.length === 0) {
+    if (selections.length === 0) {
       alert("Please select at least one invoice in any uploaded file to download.");
       return;
     }
@@ -449,24 +458,61 @@ export default function App() {
 
     try {
       const zip = new JSZip();
-      
-      const totalInvoicesToProcess = filesWithSelectedInvoices.reduce((sum, item) => sum + item.selected.length, 0);
+
+      // Count unit occurrences per carrier across ALL uploaded files, so a unit that
+      // shows up twice anywhere in the carrier's batch gets its invoice number appended.
+      const unitCounts: Record<string, number> = {};
+      selections.forEach(({ carrier, selected }) => {
+        selected.forEach(inv => {
+          if (inv.isStatement) return;
+          const unit = inv.unitNumber?.trim();
+          if (unit) {
+            const key = `${carrier}|${unit}`;
+            unitCounts[key] = (unitCounts[key] || 0) + 1;
+          }
+        });
+      });
+
+      const usedNames: Record<string, Set<string>> = {};
+      const nameFor = (carrier: string, inv: InvoiceGroup): string => {
+        let base: string;
+        if (inv.isStatement) {
+          base = 'Statement';
+        } else {
+          const unit = inv.unitNumber?.trim();
+          if (!unit) {
+            base = inv.invoiceNumber;
+          } else if (unitCounts[`${carrier}|${unit}`] > 1) {
+            base = `${unit}_${inv.invoiceNumber}`;
+          } else {
+            base = unit;
+          }
+        }
+        if (stripSpecialChars) {
+          base = base.replace(/[^a-zA-Z0-9_\-\s]/g, '');
+        }
+        // Guarantee uniqueness inside the carrier folder
+        const used = usedNames[carrier] ?? (usedNames[carrier] = new Set());
+        let name = `${base}.pdf`;
+        let n = 2;
+        while (used.has(name)) {
+          name = `${base} (${n++}).pdf`;
+        }
+        used.add(name);
+        return name;
+      };
+
+      const totalInvoicesToProcess = selections.reduce((sum, item) => sum + item.selected.length, 0);
       let processedCount = 0;
 
-      for (let fIdx = 0; fIdx < filesWithSelectedInvoices.length; fIdx++) {
-        const { file, selected } = filesWithSelectedInvoices[fIdx];
-        
-        // Use clean folder names matching each source file (without the .pdf extension)
-        const folderName = file.name.replace(/\.pdf$/i, '').trim() || `Batch_${fIdx + 1}`;
-        const folder = zip.folder(folderName);
-        
+      for (const { file, carrier, selected } of selections) {
+        const folder = zip.folder(carrier);
         if (!folder) continue;
 
-        for (let i = 0; i < selected.length; i++) {
-          const inv = selected[i];
+        for (const inv of selected) {
           const splitBytes = await splitPdfPages(file.bytes, inv.pages);
-          folder.file(inv.filename, splitBytes);
-          
+          folder.file(nameFor(carrier, inv), splitBytes);
+
           processedCount++;
           // Update progress bar
           const progressPercentage = Math.round((processedCount / totalInvoicesToProcess) * 90) + 5;
@@ -478,11 +524,12 @@ export default function App() {
       const content = await zip.generateAsync({ type: 'blob' });
       setExportProgress(100);
 
-      // Create download link
+      // Create download link — name the zip after the carrier when there is only one
+      const carriers = [...new Set(selections.map(s => s.carrier))];
       const url = URL.createObjectURL(content);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Split_Invoices_Archive.zip`;
+      a.download = carriers.length === 1 ? `${carriers[0]}_Invoices.zip` : `Split_Invoices_Archive.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -662,8 +709,46 @@ export default function App() {
       </nav>
 
       {/* 2. Main Workbench Panels */}
-      <main className="flex-1 flex overflow-hidden p-6 gap-6" id="workbench_main">
-        
+      <main className="flex-1 flex flex-col overflow-hidden p-6 gap-4" id="workbench_main">
+
+        {/* ONE-ZIP EXPORT BAR: drop up to 10 PDFs, get a single ZIP back */}
+        {uploadedFiles.length > 0 && (
+          <div className="bg-indigo-600 rounded-2xl px-6 py-4 flex items-center justify-between gap-4 shadow-md shadow-indigo-100 flex-shrink-0" id="one_zip_bar">
+            <div className="flex items-center gap-3 text-white min-w-0">
+              <FolderArchive className="w-6 h-6 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-black leading-tight">
+                  {uploadedFiles.length} PDF{uploadedFiles.length > 1 ? 's' : ''} loaded · {uploadedFiles.reduce((s, f) => s + f.invoices.filter(i => i.isSelected).length, 0)} invoices ready
+                </p>
+                <p className="text-[11px] text-indigo-200 truncate">
+                  One ZIP · folder per carrier ({[...new Set(uploadedFiles.map(carrierOf))].join(', ')}) · one PDF per truck unit
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="px-4 py-2.5 bg-indigo-500/60 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all flex items-center gap-2 text-xs"
+                id="one_zip_add_btn"
+              >
+                <Upload className="w-4 h-4" />
+                Add PDFs ({uploadedFiles.length}/10)
+              </button>
+              <button
+                onClick={downloadSelectedAsZip}
+                disabled={status === 'processing'}
+                className="px-5 py-2.5 bg-white text-indigo-700 font-black rounded-xl hover:bg-indigo-50 active:translate-y-0.5 transition-all flex items-center gap-2 text-xs disabled:opacity-60 disabled:cursor-wait"
+                id="one_zip_download_btn"
+              >
+                <FolderArchive className="w-4 h-4" />
+                {status === 'processing' ? `Building ZIP… ${exportProgress}%` : 'Download 1 ZIP'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 flex overflow-hidden gap-6 min-h-0" id="workbench_columns">
+
         {/* Left Column: Core File Drop & Selection Area (60% Width) */}
         <div className="flex flex-col w-3/5 gap-6 h-full overflow-hidden" id="left_column">
           
@@ -699,7 +784,7 @@ export default function App() {
                   </div>
                   <h2 className="text-2xl font-black text-slate-800 mb-2">Split Multi-Invoice PDF Instantly</h2>
                   <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                    Have a consolidated PDF statement containing multiple distinct invoice pages? Drag it here to instantly parse details and download separate correctly-named files. Support up to 10 files!
+                    Drop up to <span className="font-bold text-slate-700">10 consolidated statement PDFs at once</span> — no need to process them one by one. You get back <span className="font-bold text-slate-700">one ZIP</span> with a folder per carrier and each invoice named by its truck unit number.
                   </p>
                   
                   <div className="flex items-center gap-3 mb-8" id="upload_actions">
@@ -1180,7 +1265,7 @@ export default function App() {
                     id="export_zip_btn"
                   >
                     <FolderArchive className="w-4 h-4" />
-                    Download ZIP Bundle
+                    Download 1 ZIP (All Files)
                   </button>
 
                   <button 
@@ -1367,6 +1452,8 @@ export default function App() {
               )}
             </div>
           </div>
+
+        </div>
 
         </div>
 
