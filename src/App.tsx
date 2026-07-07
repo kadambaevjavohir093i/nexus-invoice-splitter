@@ -278,6 +278,7 @@ export default function App() {
     setErrorMessage(null);
 
     const newUploadedFiles: UploadedFile[] = [];
+    const failedFiles: string[] = [];
 
     for (let i = 0; i < filesToProcess.length; i++) {
       const file = filesToProcess[i];
@@ -304,13 +305,24 @@ export default function App() {
         newUploadedFiles.push(newFile);
       } catch (error: any) {
         console.error(`Error parsing file ${file.name}:`, error);
+        failedFiles.push(file.name);
       }
     }
 
     if (newUploadedFiles.length === 0) {
-      setErrorMessage('Failed to parse the uploaded PDF files.');
+      setErrorMessage(
+        failedFiles.length > 0
+          ? `Could not read: ${failedFiles.join(', ')}. Make sure they are valid, non-password-protected PDF files.`
+          : 'Failed to parse the uploaded PDF files.'
+      );
       setStatus('error');
       return;
+    }
+
+    // Some files loaded but others failed — tell the user instead of silently skipping,
+    // otherwise it looks like the app only accepted one file.
+    if (failedFiles.length > 0) {
+      alert(`${newUploadedFiles.length} file(s) loaded, but ${failedFiles.length} could not be read and were skipped:\n\n${failedFiles.join('\n')}\n\nMake sure they are valid, non-password-protected PDFs.`);
     }
 
     setUploadedFiles(prev => {
