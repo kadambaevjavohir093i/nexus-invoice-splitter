@@ -5,6 +5,9 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // Relative base so the built app works when served from a sub-path
+    // (e.g. GitHub Pages at /nexus-invoice-splitter/).
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
