@@ -725,14 +725,14 @@ export default function App() {
 
         {/* ONE-ZIP EXPORT BAR: drop up to 10 PDFs, get a single ZIP back */}
         {uploadedFiles.length > 0 && (
-          <div className="bg-red-600 rounded-2xl px-6 py-4 flex items-center justify-between gap-4 shadow-md shadow-red-950 flex-shrink-0" id="one_zip_bar">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl px-6 py-4 flex items-center justify-between gap-4 shadow-md flex-shrink-0" id="one_zip_bar">
             <div className="flex items-center gap-3 text-white min-w-0">
               <FolderArchive className="w-6 h-6 flex-shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm font-black leading-tight">
                   {uploadedFiles.length} PDF{uploadedFiles.length > 1 ? 's' : ''} loaded · {uploadedFiles.reduce((s, f) => s + f.invoices.filter(i => i.isSelected).length, 0)} invoices ready
                 </p>
-                <p className="text-[11px] text-red-200 truncate">
+                <p className="text-[11px] text-neutral-400 truncate">
                   One ZIP · folder per carrier ({[...new Set(uploadedFiles.map(carrierOf))].join(', ')}) · one PDF per truck unit
                 </p>
               </div>
@@ -740,7 +740,7 @@ export default function App() {
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2.5 bg-red-500/60 hover:bg-red-500 text-white font-bold rounded-xl transition-all flex items-center gap-2 text-xs"
+                className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 font-bold rounded-xl transition-all flex items-center gap-2 text-xs"
                 id="one_zip_add_btn"
               >
                 <Upload className="w-4 h-4" />
@@ -749,7 +749,7 @@ export default function App() {
               <button
                 onClick={downloadSelectedAsZip}
                 disabled={status === 'processing'}
-                className="px-5 py-2.5 bg-neutral-900 text-red-400 font-black rounded-xl hover:bg-red-950 active:translate-y-0.5 transition-all flex items-center gap-2 text-xs disabled:opacity-60 disabled:cursor-wait"
+                className="px-5 py-2.5 bg-red-600 text-white font-black rounded-xl hover:bg-red-700 active:translate-y-0.5 transition-all flex items-center gap-2 text-xs disabled:opacity-60 disabled:cursor-wait"
                 id="one_zip_download_btn"
               >
                 <FolderArchive className="w-4 h-4" />
@@ -872,14 +872,14 @@ export default function App() {
               >
                 <div className="p-4 border-b border-neutral-800 flex items-center justify-between flex-shrink-0 bg-neutral-900" id="sidebar_header">
                   <div className="flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-red-500 animate-pulse" />
+                    <Layers className="w-4 h-4 text-neutral-400" />
                     <span className="text-xs font-black uppercase tracking-wider text-neutral-400">Batches ({uploadedFiles.length}/10)</span>
                   </div>
                   
                   {/* Small trigger button inside sidebar */}
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-1 text-red-500 hover:text-red-200 hover:bg-red-950 rounded-lg transition-colors"
+                    className="p-1 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded-lg transition-colors"
                     title="Upload more PDF documents"
                     id="add_file_sidebar_btn"
                   >
@@ -898,7 +898,7 @@ export default function App() {
                       <div
                         key={file.id}
                         onClick={() => handleSelectFile(file.id)}
-                        className={`group relative p-3 rounded-xl border transition-all cursor-pointer flex flex-col ${isSelected ? 'bg-neutral-900 border-red-500 ring-2 ring-red-500/25 text-red-100 shadow-sm' : 'bg-neutral-900 border-neutral-800 hover:bg-neutral-950 text-neutral-200'}`}
+                        className={`group relative p-3 rounded-xl border transition-all cursor-pointer flex flex-col ${isSelected ? 'bg-neutral-900 border-red-500 ring-2 ring-red-500/25 text-neutral-100 shadow-sm' : 'bg-neutral-900 border-neutral-800 hover:bg-neutral-950 text-neutral-200'}`}
                         id={`sidebar_file_item_${file.id}`}
                       >
                         <div className="flex items-start justify-between gap-1">
@@ -918,7 +918,7 @@ export default function App() {
                         
                         <div className="flex items-center justify-between mt-2.5 text-[10px] text-neutral-400 font-medium font-mono">
                           <span>{file.totalPages} pgs · {(file.size / (1024 * 1024)).toFixed(2)} MB</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${selectedCount > 0 ? 'bg-red-950 text-red-400 border border-red-900' : 'bg-neutral-800 text-neutral-500'}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${selectedCount > 0 ? 'bg-neutral-800 text-neutral-300 border border-neutral-700' : 'bg-neutral-800 text-neutral-500'}`}>
                             {selectedCount}/{file.invoices.length} split
                           </span>
                         </div>
@@ -935,7 +935,7 @@ export default function App() {
                       className={`border border-dashed rounded-xl p-3 text-center transition-all flex flex-col items-center justify-center gap-1.5 bg-neutral-900 shadow-xs ${isDragging ? 'border-red-500 bg-red-950/50 text-red-500' : 'border-neutral-800 hover:border-red-500 text-neutral-500 hover:text-red-500'}`}
                       id="sidebar_add_placeholder_btn"
                     >
-                      <Upload className="w-4 h-4 text-red-500 animate-pulse" />
+                      <Upload className="w-4 h-4 text-neutral-400" />
                       <span className="text-[10px] font-bold uppercase tracking-wider">Drag or Add PDF</span>
                       <span className="text-[9px] text-neutral-500">{10 - uploadedFiles.length} slots left</span>
                     </button>
@@ -959,13 +959,13 @@ export default function App() {
                 {/* Document Summary bar */}
                 <div className="bg-neutral-950 border-b border-neutral-800 px-6 py-4 flex items-center justify-between flex-shrink-0" id="summary_bar">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-red-950 text-red-500 rounded-lg">
+                    <div className="p-2 bg-neutral-800 text-neutral-300 rounded-lg">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-neutral-100 line-clamp-1 max-w-sm">{fileName}</h3>
                       <p className="text-[11px] text-neutral-400 font-medium">
-                        {(fileSize / (1024 * 1024)).toFixed(2)} MB · {totalPages} Pages Detected · <span className="font-bold text-red-500">{computedInvoices.length} extracted files</span>
+                        {(fileSize / (1024 * 1024)).toFixed(2)} MB · {totalPages} Pages Detected · <span className="font-bold text-neutral-200">{computedInvoices.length} extracted files</span>
                       </p>
                     </div>
                   </div>
@@ -985,15 +985,15 @@ export default function App() {
 
               {/* Advanced Manual Split Editor Overlay */}
               {isManualMode && (
-                <div className="p-4 bg-red-950/40 border-b border-red-900 flex flex-col gap-3 flex-shrink-0" id="manual_split_editor">
+                <div className="p-4 bg-neutral-900 border-b border-neutral-800 flex flex-col gap-3 flex-shrink-0" id="manual_split_editor">
                   <div className="flex items-start gap-2">
                     <Info className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-red-200 leading-normal">
+                    <p className="text-xs text-neutral-300 leading-normal">
                       <span className="font-bold">Custom Split Editor:</span> If the automatic detector missed an invoice page or you want to group pages manually, check the boxes on the pages below, give them an invoice details block, and click <span className="font-semibold">Add Custom Invoice Group</span>.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-3 bg-neutral-900 p-3 rounded-xl border border-red-900">
+                  <div className="grid grid-cols-4 gap-3 bg-neutral-900 p-3 rounded-xl border border-neutral-800">
                     <div className="flex flex-col gap-1">
                       <label className="text-[10px] font-bold text-neutral-500 uppercase">Target Invoice #</label>
                       <input 
@@ -1064,11 +1064,11 @@ export default function App() {
                 {/* Checkbox selector for all */}
                 <button 
                   onClick={toggleSelectAll}
-                  className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-red-500 font-semibold transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-neutral-100 font-semibold transition-colors"
                   id="select_all_btn"
                 >
                   {invoices.every(inv => inv.isSelected) ? (
-                    <CheckSquare className="w-4 h-4 text-red-500" />
+                    <CheckSquare className="w-4 h-4 text-neutral-300" />
                   ) : (
                     <Square className="w-4 h-4 text-neutral-500" />
                   )}
@@ -1128,11 +1128,11 @@ export default function App() {
                             <td className="py-3 px-6 align-middle">
                               <button 
                                 onClick={() => toggleInvoiceSelected(inv.id)}
-                                className="text-neutral-500 hover:text-red-500 transition-colors"
+                                className="text-neutral-500 hover:text-neutral-200 transition-colors"
                                 id={`check_btn_${inv.id}`}
                               >
                                 {isCurrentlySelected ? (
-                                  <CheckSquare className="w-4 h-4 text-red-500" />
+                                  <CheckSquare className="w-4 h-4 text-neutral-300" />
                                 ) : (
                                   <Square className="w-4 h-4 text-neutral-600 group-hover:border-neutral-500" />
                                 )}
@@ -1190,7 +1190,7 @@ export default function App() {
 
                                 <button 
                                   onClick={() => downloadSingleInvoice(inv.id)}
-                                  className="p-1.5 bg-neutral-950 border border-neutral-800 text-red-500 hover:text-red-200 hover:bg-neutral-800 rounded-lg transition-colors"
+                                  className="p-1.5 bg-neutral-950 border border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 rounded-lg transition-colors"
                                   title="Download Split PDF"
                                   id={`download_btn_${inv.id}`}
                                 >
@@ -1231,7 +1231,7 @@ export default function App() {
                   <span>Select any row to display live billing replica on the right sidebar</span>
                 </div>
                 <div>
-                  Selected <span className="font-extrabold text-red-500">{invoices.filter(i => i.isSelected).length}</span> of <span className="font-semibold text-neutral-200">{computedInvoices.length}</span> invoices
+                  Selected <span className="font-extrabold text-neutral-100">{invoices.filter(i => i.isSelected).length}</span> of <span className="font-semibold text-neutral-200">{computedInvoices.length}</span> invoices
                 </div>
               </div>
 
@@ -1374,7 +1374,7 @@ export default function App() {
 
                   {/* Replica details */}
                   <div className="border border-neutral-800 rounded-lg overflow-hidden mb-4">
-                    <div className="bg-red-700 text-white font-bold p-1.5 text-[8px] grid grid-cols-12 uppercase tracking-wider">
+                    <div className="bg-neutral-800 text-neutral-200 font-bold p-1.5 text-[8px] grid grid-cols-12 uppercase tracking-wider">
                       <span className="col-span-2">Type</span>
                       <span className="col-span-5">Service / Part Description</span>
                       <span className="col-span-2 text-right">Qty/Hours</span>
