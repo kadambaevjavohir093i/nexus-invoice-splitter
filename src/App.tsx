@@ -681,36 +681,36 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-slate-50 font-sans text-slate-900 overflow-hidden" id="main_layout">
+    <div className="flex flex-col h-screen w-full bg-neutral-950 font-sans text-neutral-100 overflow-hidden" id="main_layout">
       
       {/* 1. Sleek Navigation Header */}
-      <nav className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-8 flex-shrink-0 z-10 shadow-xs" id="nav_header">
+      <nav className="h-16 border-b border-neutral-800 bg-neutral-900 flex items-center justify-between px-8 flex-shrink-0 z-10 shadow-xs" id="nav_header">
         <div className="flex items-center gap-3" id="logo_container">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100" id="logo_icon_box">
+          <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-red-950" id="logo_icon_box">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="logo_svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
             </svg>
           </div>
           <div className="flex flex-col">
-            <span className="text-lg font-extrabold tracking-tight text-slate-800 leading-none">Invoice<span className="text-indigo-600">Splitter</span></span>
-            <span className="text-[10px] font-semibold text-slate-400 mt-0.5 tracking-wider uppercase">PDF Parsing Engine</span>
+            <span className="text-lg font-extrabold tracking-tight text-neutral-100 leading-none">Invoice<span className="text-red-500">Splitter</span></span>
+            <span className="text-[10px] font-semibold text-neutral-500 mt-0.5 tracking-wider uppercase">PDF Parsing Engine</span>
           </div>
         </div>
 
         {/* Status Indicators */}
         <div className="flex items-center gap-6" id="header_status_bar">
-          <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+          <div className="hidden md:flex items-center gap-2 text-xs text-neutral-400 bg-neutral-800 px-3 py-1.5 rounded-full border border-neutral-800">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
-            <span className="font-medium text-slate-600">Client Sandbox Processor (Secure)</span>
+            <span className="font-medium text-neutral-300">Client Sandbox Processor (Secure)</span>
           </div>
           
           {uploadedFiles.length > 0 && (
             <button 
               onClick={handleClearAll}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 hover:bg-red-50 text-red-600 rounded-lg text-xs font-semibold transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-red-800 hover:bg-red-950 text-red-600 rounded-lg text-xs font-semibold transition-all"
               id="clear_file_btn"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -725,14 +725,14 @@ export default function App() {
 
         {/* ONE-ZIP EXPORT BAR: drop up to 10 PDFs, get a single ZIP back */}
         {uploadedFiles.length > 0 && (
-          <div className="bg-indigo-600 rounded-2xl px-6 py-4 flex items-center justify-between gap-4 shadow-md shadow-indigo-100 flex-shrink-0" id="one_zip_bar">
+          <div className="bg-red-600 rounded-2xl px-6 py-4 flex items-center justify-between gap-4 shadow-md shadow-red-950 flex-shrink-0" id="one_zip_bar">
             <div className="flex items-center gap-3 text-white min-w-0">
               <FolderArchive className="w-6 h-6 flex-shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm font-black leading-tight">
                   {uploadedFiles.length} PDF{uploadedFiles.length > 1 ? 's' : ''} loaded · {uploadedFiles.reduce((s, f) => s + f.invoices.filter(i => i.isSelected).length, 0)} invoices ready
                 </p>
-                <p className="text-[11px] text-indigo-200 truncate">
+                <p className="text-[11px] text-red-200 truncate">
                   One ZIP · folder per carrier ({[...new Set(uploadedFiles.map(carrierOf))].join(', ')}) · one PDF per truck unit
                 </p>
               </div>
@@ -740,7 +740,7 @@ export default function App() {
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2.5 bg-indigo-500/60 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all flex items-center gap-2 text-xs"
+                className="px-4 py-2.5 bg-red-500/60 hover:bg-red-500 text-white font-bold rounded-xl transition-all flex items-center gap-2 text-xs"
                 id="one_zip_add_btn"
               >
                 <Upload className="w-4 h-4" />
@@ -749,7 +749,7 @@ export default function App() {
               <button
                 onClick={downloadSelectedAsZip}
                 disabled={status === 'processing'}
-                className="px-5 py-2.5 bg-white text-indigo-700 font-black rounded-xl hover:bg-indigo-50 active:translate-y-0.5 transition-all flex items-center gap-2 text-xs disabled:opacity-60 disabled:cursor-wait"
+                className="px-5 py-2.5 bg-neutral-900 text-red-400 font-black rounded-xl hover:bg-red-950 active:translate-y-0.5 transition-all flex items-center gap-2 text-xs disabled:opacity-60 disabled:cursor-wait"
                 id="one_zip_download_btn"
               >
                 <FolderArchive className="w-4 h-4" />
@@ -770,39 +770,39 @@ export default function App() {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`flex-1 bg-white rounded-2xl border-2 ${isDragging ? 'border-indigo-500 bg-indigo-50/30' : 'border-dashed border-slate-200'} shadow-sm p-8 flex flex-col items-center justify-center text-center transition-all relative overflow-hidden`}
+              className={`flex-1 bg-neutral-900 rounded-2xl border-2 ${isDragging ? 'border-red-500 bg-red-950/30' : 'border-dashed border-neutral-800'} shadow-sm p-8 flex flex-col items-center justify-center text-center transition-all relative overflow-hidden`}
               id="upload_drop_zone"
             >
-              <div className="absolute top-4 right-4 text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full flex items-center gap-1 shadow-xs border border-indigo-100">
-                <Sparkles className="w-3 h-3 text-indigo-600 animate-pulse" />
+              <div className="absolute top-4 right-4 text-xs font-semibold px-2.5 py-1 bg-red-950 text-red-400 rounded-full flex items-center gap-1 shadow-xs border border-red-900">
+                <Sparkles className="w-3 h-3 text-red-500 animate-pulse" />
                 Automatic Multi-Page Splitting
               </div>
 
               {status === 'parsing' ? (
                 <div className="flex flex-col items-center justify-center" id="parsing_loader">
-                  <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                    <RefreshCw className="w-10 h-10 text-indigo-600 animate-spin" />
+                  <div className="w-20 h-20 bg-red-950 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                    <RefreshCw className="w-10 h-10 text-red-500 animate-spin" />
                   </div>
-                  <h2 className="text-xl font-bold mb-1 text-slate-800">Reading & Decoding Master File</h2>
-                  <p className="text-sm text-slate-500 max-w-sm mb-4">Scanning PDF text structure, isolating distinct invoice headers, and aligning pages automatically...</p>
-                  <div className="w-48 bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-indigo-600 h-full rounded-full animate-infinite-loading" style={{ width: '60%' }}></div>
+                  <h2 className="text-xl font-bold mb-1 text-neutral-100">Reading & Decoding Master File</h2>
+                  <p className="text-sm text-neutral-400 max-w-sm mb-4">Scanning PDF text structure, isolating distinct invoice headers, and aligning pages automatically...</p>
+                  <div className="w-48 bg-neutral-800 h-2 rounded-full overflow-hidden">
+                    <div className="bg-red-600 h-full rounded-full animate-infinite-loading" style={{ width: '60%' }}></div>
                   </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center max-w-lg" id="upload_prompt_block">
-                  <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-6 shadow-inner transition-transform hover:scale-105 duration-300">
+                  <div className="w-20 h-20 bg-red-950 text-red-500 rounded-full flex items-center justify-center mb-6 shadow-inner transition-transform hover:scale-105 duration-300">
                     <Upload className="w-10 h-10" />
                   </div>
-                  <h2 className="text-2xl font-black text-slate-800 mb-2">Split Multi-Invoice PDF Instantly</h2>
-                  <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                    Drop up to <span className="font-bold text-slate-700">10 consolidated statement PDFs at once</span> — no need to process them one by one. You get back <span className="font-bold text-slate-700">one ZIP</span> with a folder per carrier and each invoice named by its truck unit number.
+                  <h2 className="text-2xl font-black text-neutral-100 mb-2">Split Multi-Invoice PDF Instantly</h2>
+                  <p className="text-neutral-400 text-sm leading-relaxed mb-6">
+                    Drop up to <span className="font-bold text-neutral-200">10 consolidated statement PDFs at once</span> — no need to process them one by one. You get back <span className="font-bold text-neutral-200">one ZIP</span> with a folder per carrier and each invoice named by its truck unit number.
                   </p>
                   
                   <div className="flex items-center gap-3 mb-8" id="upload_actions">
                     <button 
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 active:translate-y-0.5 transition-all shadow-md shadow-indigo-100 flex items-center gap-2 text-sm"
+                      className="px-6 py-3 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 active:translate-y-0.5 transition-all shadow-md shadow-red-950 flex items-center gap-2 text-sm"
                       id="select_pdf_btn"
                     >
                       <FileUp className="w-4 h-4" />
@@ -811,10 +811,10 @@ export default function App() {
 
                     <button 
                       onClick={loadDemoSample}
-                      className="px-5 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold rounded-xl active:translate-y-0.5 transition-all flex items-center gap-2 text-sm"
+                      className="px-5 py-3 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 font-semibold rounded-xl active:translate-y-0.5 transition-all flex items-center gap-2 text-sm"
                       id="load_demo_btn"
                     >
-                      <Sparkles className="w-4 h-4 text-emerald-600" />
+                      <Sparkles className="w-4 h-4 text-emerald-400" />
                       Try with Sample PDF
                     </button>
                   </div>
@@ -829,7 +829,7 @@ export default function App() {
                   />
 
                   {status === 'error' && errorMessage && (
-                    <div className="mt-4 p-4 bg-red-50 rounded-xl border border-red-100 text-red-700 text-xs flex items-start gap-2.5 max-w-md text-left" id="error_message_banner">
+                    <div className="mt-4 p-4 bg-red-950 rounded-xl border border-red-900 text-red-300 text-xs flex items-start gap-2.5 max-w-md text-left" id="error_message_banner">
                       <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       <div>
                         <span className="font-bold">Parsing Issue:</span> {errorMessage}
@@ -837,11 +837,11 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="mt-6 flex items-center gap-5 text-xs text-slate-400 font-medium">
+                  <div className="mt-6 flex items-center gap-5 text-xs text-neutral-500 font-medium">
                     <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5 text-emerald-500" /> Fast Client-Side PDF Splitting</span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-200"></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-neutral-700"></span>
                     <span>Supports 100+ pages</span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-200"></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-neutral-700"></span>
                     <span>100% Private (No uploads to server)</span>
                   </div>
                 </div>
@@ -849,16 +849,16 @@ export default function App() {
             </div>
           ) : (
             /* FILE LOADED - ACTIVE WORKBENCH WITH MULTI-FILE BATCH SIDEBAR */
-            <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-row overflow-hidden relative" id="active_workbench">
+            <div className="flex-1 bg-neutral-900 rounded-2xl border border-neutral-800 shadow-sm flex flex-row overflow-hidden relative" id="active_workbench">
               
               {/* Floating parsing loader when adding additionals */}
               {status === 'parsing' && (
-                <div className="absolute inset-0 bg-white/85 backdrop-blur-xs z-50 flex flex-col items-center justify-center text-center p-6" id="workbench_parsing_overlay">
-                  <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4 animate-pulse">
-                    <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
+                <div className="absolute inset-0 bg-neutral-900/85 backdrop-blur-xs z-50 flex flex-col items-center justify-center text-center p-6" id="workbench_parsing_overlay">
+                  <div className="w-16 h-16 bg-red-950 rounded-full flex items-center justify-center mb-4 animate-pulse">
+                    <RefreshCw className="w-8 h-8 text-red-500 animate-spin" />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-800">Parsing Additional PDF Document...</h3>
-                  <p className="text-xs text-slate-500 max-w-xs mt-1">Decoding text structure and extracting invoice pages automatically. Please wait...</p>
+                  <h3 className="text-sm font-bold text-neutral-100">Parsing Additional PDF Document...</h3>
+                  <p className="text-xs text-neutral-400 max-w-xs mt-1">Decoding text structure and extracting invoice pages automatically. Please wait...</p>
                 </div>
               )}
 
@@ -867,19 +867,19 @@ export default function App() {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`w-1/4 border-r flex flex-col h-full flex-shrink-0 transition-all ${isDragging ? 'bg-indigo-50/70 border-indigo-300' : 'bg-slate-50/60 border-slate-200'}`}
+                className={`w-1/4 border-r flex flex-col h-full flex-shrink-0 transition-all ${isDragging ? 'bg-red-950/70 border-red-800' : 'bg-neutral-950/60 border-neutral-800'}`}
                 id="uploaded_files_sidebar"
               >
-                <div className="p-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white" id="sidebar_header">
+                <div className="p-4 border-b border-neutral-800 flex items-center justify-between flex-shrink-0 bg-neutral-900" id="sidebar_header">
                   <div className="flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-indigo-600 animate-pulse" />
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-500">Batches ({uploadedFiles.length}/10)</span>
+                    <Layers className="w-4 h-4 text-red-500 animate-pulse" />
+                    <span className="text-xs font-black uppercase tracking-wider text-neutral-400">Batches ({uploadedFiles.length}/10)</span>
                   </div>
                   
                   {/* Small trigger button inside sidebar */}
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-1 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
+                    className="p-1 text-red-500 hover:text-red-200 hover:bg-red-950 rounded-lg transition-colors"
                     title="Upload more PDF documents"
                     id="add_file_sidebar_btn"
                   >
@@ -888,7 +888,7 @@ export default function App() {
                 </div>
 
                 <div 
-                  className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 bg-slate-50/40"
+                  className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 bg-neutral-950/40"
                   id="sidebar_files_list"
                 >
                   {uploadedFiles.map((file) => {
@@ -898,7 +898,7 @@ export default function App() {
                       <div
                         key={file.id}
                         onClick={() => handleSelectFile(file.id)}
-                        className={`group relative p-3 rounded-xl border transition-all cursor-pointer flex flex-col ${isSelected ? 'bg-white border-indigo-500 ring-2 ring-indigo-500/25 text-indigo-900 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'}`}
+                        className={`group relative p-3 rounded-xl border transition-all cursor-pointer flex flex-col ${isSelected ? 'bg-neutral-900 border-red-500 ring-2 ring-red-500/25 text-red-100 shadow-sm' : 'bg-neutral-900 border-neutral-800 hover:bg-neutral-950 text-neutral-200'}`}
                         id={`sidebar_file_item_${file.id}`}
                       >
                         <div className="flex items-start justify-between gap-1">
@@ -908,7 +908,7 @@ export default function App() {
                           
                           <button
                             onClick={(e) => handleDeleteUploadedFile(file.id, e)}
-                            className="absolute top-2.5 right-2.5 p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            className="absolute top-2.5 right-2.5 p-1 text-neutral-500 hover:text-red-500 hover:bg-red-950 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                             title="Remove file"
                             id={`delete_file_sidebar_btn_${file.id}`}
                           >
@@ -916,9 +916,9 @@ export default function App() {
                           </button>
                         </div>
                         
-                        <div className="flex items-center justify-between mt-2.5 text-[10px] text-slate-500 font-medium font-mono">
+                        <div className="flex items-center justify-between mt-2.5 text-[10px] text-neutral-400 font-medium font-mono">
                           <span>{file.totalPages} pgs · {(file.size / (1024 * 1024)).toFixed(2)} MB</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${selectedCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-slate-100 text-slate-400'}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${selectedCount > 0 ? 'bg-red-950 text-red-400 border border-red-900' : 'bg-neutral-800 text-neutral-500'}`}>
                             {selectedCount}/{file.invoices.length} split
                           </span>
                         </div>
@@ -932,12 +932,12 @@ export default function App() {
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
-                      className={`border border-dashed rounded-xl p-3 text-center transition-all flex flex-col items-center justify-center gap-1.5 bg-white shadow-xs ${isDragging ? 'border-indigo-500 bg-indigo-50/50 text-indigo-600' : 'border-slate-200 hover:border-indigo-500 text-slate-400 hover:text-indigo-600'}`}
+                      className={`border border-dashed rounded-xl p-3 text-center transition-all flex flex-col items-center justify-center gap-1.5 bg-neutral-900 shadow-xs ${isDragging ? 'border-red-500 bg-red-950/50 text-red-500' : 'border-neutral-800 hover:border-red-500 text-neutral-500 hover:text-red-500'}`}
                       id="sidebar_add_placeholder_btn"
                     >
-                      <Upload className="w-4 h-4 text-indigo-500 animate-pulse" />
+                      <Upload className="w-4 h-4 text-red-500 animate-pulse" />
                       <span className="text-[10px] font-bold uppercase tracking-wider">Drag or Add PDF</span>
-                      <span className="text-[9px] text-slate-400">{10 - uploadedFiles.length} slots left</span>
+                      <span className="text-[9px] text-neutral-500">{10 - uploadedFiles.length} slots left</span>
                     </button>
                   )}
                 </div>
@@ -957,15 +957,15 @@ export default function App() {
               <div className="flex-1 flex flex-col h-full overflow-hidden" id="active_file_workbench_detail">
                 
                 {/* Document Summary bar */}
-                <div className="bg-slate-50 border-b border-slate-150 px-6 py-4 flex items-center justify-between flex-shrink-0" id="summary_bar">
+                <div className="bg-neutral-950 border-b border-neutral-800 px-6 py-4 flex items-center justify-between flex-shrink-0" id="summary_bar">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                    <div className="p-2 bg-red-950 text-red-500 rounded-lg">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-slate-800 line-clamp-1 max-w-sm">{fileName}</h3>
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        {(fileSize / (1024 * 1024)).toFixed(2)} MB · {totalPages} Pages Detected · <span className="font-bold text-indigo-600">{computedInvoices.length} extracted files</span>
+                      <h3 className="text-sm font-bold text-neutral-100 line-clamp-1 max-w-sm">{fileName}</h3>
+                      <p className="text-[11px] text-neutral-400 font-medium">
+                        {(fileSize / (1024 * 1024)).toFixed(2)} MB · {totalPages} Pages Detected · <span className="font-bold text-red-500">{computedInvoices.length} extracted files</span>
                       </p>
                     </div>
                   </div>
@@ -973,7 +973,7 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setIsManualMode(!isManualMode)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 ${isManualMode ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 ${isManualMode ? 'bg-red-950 border-red-800 text-red-400' : 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:bg-neutral-950'}`}
                     title="Manually build ranges"
                     id="manual_mode_toggle"
                   >
@@ -985,46 +985,46 @@ export default function App() {
 
               {/* Advanced Manual Split Editor Overlay */}
               {isManualMode && (
-                <div className="p-4 bg-indigo-50/40 border-b border-indigo-100 flex flex-col gap-3 flex-shrink-0" id="manual_split_editor">
+                <div className="p-4 bg-red-950/40 border-b border-red-900 flex flex-col gap-3 flex-shrink-0" id="manual_split_editor">
                   <div className="flex items-start gap-2">
-                    <Info className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-indigo-800 leading-normal">
+                    <Info className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-red-200 leading-normal">
                       <span className="font-bold">Custom Split Editor:</span> If the automatic detector missed an invoice page or you want to group pages manually, check the boxes on the pages below, give them an invoice details block, and click <span className="font-semibold">Add Custom Invoice Group</span>.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-indigo-100">
+                  <div className="grid grid-cols-4 gap-3 bg-neutral-900 p-3 rounded-xl border border-red-900">
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Target Invoice #</label>
+                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Target Invoice #</label>
                       <input 
                         type="text" 
                         value={manualInvoiceNum} 
                         onChange={(e) => setManualInvoiceNum(e.target.value)}
-                        className="p-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 font-mono"
+                        className="p-1.5 text-xs border border-neutral-800 rounded-lg focus:outline-none focus:border-red-500 font-mono"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Customer Name</label>
+                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Customer Name</label>
                       <input 
                         type="text" 
                         value={manualCustomer} 
                         onChange={(e) => setManualCustomer(e.target.value)}
-                        className="p-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500"
+                        className="p-1.5 text-xs border border-neutral-800 rounded-lg focus:outline-none focus:border-red-500"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Vehicle/Details</label>
+                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Vehicle/Details</label>
                       <input 
                         type="text" 
                         value={manualVehicle} 
                         onChange={(e) => setManualVehicle(e.target.value)}
-                        className="p-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500"
+                        className="p-1.5 text-xs border border-neutral-800 rounded-lg focus:outline-none focus:border-red-500"
                       />
                     </div>
                     <div className="flex items-end">
                       <button 
                         onClick={handleAddManualInvoice}
-                        className="w-full py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1"
+                        className="w-full py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
                         id="add_manual_invoice_btn"
                       >
                         <Check className="w-3.5 h-3.5" />
@@ -1035,7 +1035,7 @@ export default function App() {
 
                   {/* Manual Page Selector list */}
                   <div className="flex flex-wrap gap-2 items-center">
-                    <span className="text-xs font-bold text-slate-500">Select Pages for Custom Group:</span>
+                    <span className="text-xs font-bold text-neutral-400">Select Pages for Custom Group:</span>
                     <div className="flex flex-wrap gap-1">
                       {Array.from({ length: totalPages }).map((_, index) => {
                         const isSelected = selectedManualPages.includes(index);
@@ -1047,7 +1047,7 @@ export default function App() {
                                 prev.includes(index) ? prev.filter(p => p !== index) : [...prev, index]
                               );
                             }}
-                            className={`w-7 h-7 rounded text-xs font-bold border transition-colors flex items-center justify-center ${isSelected ? 'bg-indigo-600 border-indigo-700 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                            className={`w-7 h-7 rounded text-xs font-bold border transition-colors flex items-center justify-center ${isSelected ? 'bg-red-600 border-red-700 text-white' : 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:bg-neutral-800'}`}
                           >
                             {index + 1}
                           </button>
@@ -1059,38 +1059,38 @@ export default function App() {
               )}
 
               {/* Search & Bulk selection controls */}
-              <div className="px-6 py-3 bg-white border-b border-slate-150 flex items-center gap-4 flex-shrink-0" id="filter_controls_bar">
+              <div className="px-6 py-3 bg-neutral-900 border-b border-neutral-800 flex items-center gap-4 flex-shrink-0" id="filter_controls_bar">
                 
                 {/* Checkbox selector for all */}
                 <button 
                   onClick={toggleSelectAll}
-                  className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-indigo-600 font-semibold transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-neutral-300 hover:text-red-500 font-semibold transition-colors"
                   id="select_all_btn"
                 >
                   {invoices.every(inv => inv.isSelected) ? (
-                    <CheckSquare className="w-4 h-4 text-indigo-600" />
+                    <CheckSquare className="w-4 h-4 text-red-500" />
                   ) : (
-                    <Square className="w-4 h-4 text-slate-400" />
+                    <Square className="w-4 h-4 text-neutral-500" />
                   )}
                   Select All Invoices
                 </button>
 
-                <div className="h-4 w-[1px] bg-slate-200"></div>
+                <div className="h-4 w-[1px] bg-neutral-700"></div>
 
                 {/* Filter list */}
-                <span className="text-xs font-medium text-slate-500">
+                <span className="text-xs font-medium text-neutral-400">
                   Showing {filteredInvoices.length} of {computedInvoices.length} matches
                 </span>
 
                 {/* Search Bar */}
                 <div className="relative flex-1 max-w-xs ml-auto" id="search_bar_wrapper">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
                   <input 
                     type="text"
                     placeholder="Search invoices, customers, trucks..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full pl-9 pr-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs focus:outline-none focus:border-red-500 transition-colors"
                     id="search_invoices_input"
                   />
                 </div>
@@ -1100,7 +1100,7 @@ export default function App() {
               <div className="flex-1 overflow-y-auto" id="invoices_table_scroll">
                 <table className="w-full text-left border-collapse" id="invoices_table">
                   <thead>
-                    <tr className="bg-slate-50/70 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-150">
+                    <tr className="bg-neutral-950/70 text-[10px] font-bold uppercase tracking-wider text-neutral-500 border-b border-neutral-800">
                       <th className="py-3 px-6 w-10">Select</th>
                       <th className="py-3 px-3">Invoice Number / Range</th>
                       <th className="py-3 px-4">Bill To Customer</th>
@@ -1110,7 +1110,7 @@ export default function App() {
                       <th className="py-3 px-6 text-center">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs">
+                  <tbody className="divide-y divide-neutral-800 text-xs">
                     <AnimatePresence initial={false}>
                       {filteredInvoices.map((inv) => {
                         const isCurrentlySelected = inv.isSelected;
@@ -1121,20 +1121,20 @@ export default function App() {
                           <motion.tr 
                             key={inv.id}
                             layoutId={inv.id}
-                            className={`group hover:bg-slate-50/50 transition-colors ${isActivePreview ? 'bg-indigo-50/30 font-medium' : ''} ${isStatement ? 'bg-amber-50/20' : ''}`}
+                            className={`group hover:bg-neutral-950/50 transition-colors ${isActivePreview ? 'bg-red-950/30 font-medium' : ''} ${isStatement ? 'bg-amber-950/20' : ''}`}
                             id={`row_${inv.id}`}
                           >
                             {/* Checkbox column */}
                             <td className="py-3 px-6 align-middle">
                               <button 
                                 onClick={() => toggleInvoiceSelected(inv.id)}
-                                className="text-slate-400 hover:text-indigo-600 transition-colors"
+                                className="text-neutral-500 hover:text-red-500 transition-colors"
                                 id={`check_btn_${inv.id}`}
                               >
                                 {isCurrentlySelected ? (
-                                  <CheckSquare className="w-4 h-4 text-indigo-600" />
+                                  <CheckSquare className="w-4 h-4 text-red-500" />
                                 ) : (
-                                  <Square className="w-4 h-4 text-slate-300 group-hover:border-slate-400" />
+                                  <Square className="w-4 h-4 text-neutral-600 group-hover:border-neutral-500" />
                                 )}
                               </button>
                             </td>
@@ -1142,37 +1142,37 @@ export default function App() {
                             {/* Number & pages */}
                             <td className="py-3 px-3 align-middle">
                               <div className="flex flex-col">
-                                <span className={`font-mono text-xs ${isStatement ? 'text-amber-800 font-extrabold' : 'text-slate-900 font-bold'}`}>
+                                <span className={`font-mono text-xs ${isStatement ? 'text-amber-300 font-extrabold' : 'text-neutral-100 font-bold'}`}>
                                   {inv.invoiceNumber}
                                 </span>
-                                <span className="text-[10px] text-slate-500 font-semibold mt-0.5 flex items-center gap-1">
-                                  <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-600">
+                                <span className="text-[10px] text-neutral-400 font-semibold mt-0.5 flex items-center gap-1">
+                                  <span className="px-1.5 py-0.5 bg-neutral-800 border border-neutral-800 rounded text-neutral-300">
                                     {inv.pages.length === 1 ? `Page ${inv.pages[0] + 1}` : `Pages ${inv.pages.map(p => p + 1).join('-')}`}
                                   </span>
-                                  {isStatement && <span className="text-amber-700 bg-amber-50 border border-amber-100 rounded px-1">Statement Summary</span>}
+                                  {isStatement && <span className="text-amber-400 bg-amber-950 border border-amber-900 rounded px-1">Statement Summary</span>}
                                 </span>
                               </div>
                             </td>
 
                             {/* Customer */}
                             <td className="py-3 px-4 align-middle">
-                              <span className="text-slate-700 font-semibold line-clamp-1">{inv.customer}</span>
+                              <span className="text-neutral-200 font-semibold line-clamp-1">{inv.customer}</span>
                             </td>
 
                             {/* Vehicle */}
                             <td className="py-3 px-4 align-middle">
-                              <span className="text-slate-600 line-clamp-1 font-mono text-[11px]">
+                              <span className="text-neutral-300 line-clamp-1 font-mono text-[11px]">
                                 {inv.vehicle || 'All Assets'}
                               </span>
                             </td>
 
                             {/* Date */}
-                            <td className="py-3 px-4 align-middle text-slate-500 font-medium font-mono text-[11px]">
+                            <td className="py-3 px-4 align-middle text-neutral-400 font-medium font-mono text-[11px]">
                               {inv.date || '-'}
                             </td>
 
                             {/* Total amount */}
-                            <td className="py-3 px-4 align-middle text-right font-mono font-bold text-slate-800">
+                            <td className="py-3 px-4 align-middle text-right font-mono font-bold text-neutral-100">
                               {inv.total > 0 ? `$${inv.total.toFixed(2)}` : '-'}
                             </td>
 
@@ -1181,7 +1181,7 @@ export default function App() {
                               <div className="flex items-center justify-center gap-1.5">
                                 <button 
                                   onClick={() => setActivePreviewId(inv.id)}
-                                  className={`p-1.5 rounded-lg transition-colors border ${isActivePreview ? 'bg-indigo-600 border-indigo-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
+                                  className={`p-1.5 rounded-lg transition-colors border ${isActivePreview ? 'bg-red-600 border-red-700 text-white' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'}`}
                                   title="View Invoice Details"
                                   id={`preview_btn_${inv.id}`}
                                 >
@@ -1190,7 +1190,7 @@ export default function App() {
 
                                 <button 
                                   onClick={() => downloadSingleInvoice(inv.id)}
-                                  className="p-1.5 bg-slate-50 border border-slate-200 text-indigo-600 hover:text-indigo-800 hover:bg-slate-100 rounded-lg transition-colors"
+                                  className="p-1.5 bg-neutral-950 border border-neutral-800 text-red-500 hover:text-red-200 hover:bg-neutral-800 rounded-lg transition-colors"
                                   title="Download Split PDF"
                                   id={`download_btn_${inv.id}`}
                                 >
@@ -1199,7 +1199,7 @@ export default function App() {
 
                                 <button 
                                   onClick={() => handleDeleteInvoiceBlock(inv.id)}
-                                  className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  className="p-1.5 text-neutral-600 hover:text-red-500 hover:bg-red-950 rounded-lg transition-colors"
                                   title="Remove Block definition"
                                   id={`delete_btn_${inv.id}`}
                                 >
@@ -1214,8 +1214,8 @@ export default function App() {
 
                     {filteredInvoices.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
-                          <Info className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                        <td colSpan={7} className="py-12 text-center text-neutral-500 font-medium">
+                          <Info className="w-8 h-8 text-neutral-600 mx-auto mb-3" />
                           No invoices match your search query. Try typing another criteria!
                         </td>
                       </tr>
@@ -1225,13 +1225,13 @@ export default function App() {
               </div>
 
               {/* Status footer inside workbench */}
-              <div className="bg-slate-50/70 border-t border-slate-150 px-6 py-3 flex items-center justify-between text-xs text-slate-500 flex-shrink-0" id="workbench_footer">
+              <div className="bg-neutral-950/70 border-t border-neutral-800 px-6 py-3 flex items-center justify-between text-xs text-neutral-400 flex-shrink-0" id="workbench_footer">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                   <span>Select any row to display live billing replica on the right sidebar</span>
                 </div>
                 <div>
-                  Selected <span className="font-extrabold text-indigo-600">{invoices.filter(i => i.isSelected).length}</span> of <span className="font-semibold text-slate-700">{computedInvoices.length}</span> invoices
+                  Selected <span className="font-extrabold text-red-500">{invoices.filter(i => i.isSelected).length}</span> of <span className="font-semibold text-neutral-200">{computedInvoices.length}</span> invoices
                 </div>
               </div>
 
@@ -1246,34 +1246,34 @@ export default function App() {
         <div className="w-2/5 flex flex-col gap-6 h-full overflow-hidden" id="right_column">
           
           {/* ACTION CONSOLE / EXPORT CARD */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col flex-shrink-0" id="action_console_card">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3.5">Export & Generation Actions</h3>
+          <div className="bg-neutral-900 rounded-2xl border border-neutral-800 shadow-sm p-6 flex flex-col flex-shrink-0" id="action_console_card">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-3.5">Export & Generation Actions</h3>
             
             {status === 'processing' ? (
-              <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex flex-col gap-2.5" id="processing_progress_box">
-                <div className="flex justify-between text-xs font-bold text-indigo-900">
+              <div className="p-4 bg-red-950 rounded-xl border border-red-900 flex flex-col gap-2.5" id="processing_progress_box">
+                <div className="flex justify-between text-xs font-bold text-red-100">
                   <span className="flex items-center gap-1.5"><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Splitting PDF Boundaries</span>
                   <span>{exportProgress}%</span>
                 </div>
-                <div className="w-full bg-indigo-100 h-2.5 rounded-full overflow-hidden">
+                <div className="w-full bg-red-900 h-2.5 rounded-full overflow-hidden">
                   <div 
-                    className="bg-indigo-600 h-full rounded-full transition-all duration-300"
+                    className="bg-red-600 h-full rounded-full transition-all duration-300"
                     style={{ width: `${exportProgress}%` }}
                   ></div>
                 </div>
-                <p className="text-[10px] text-indigo-700 font-semibold">Executing fast split commands. Compiling ZIP archive inside browser sandbox safely.</p>
+                <p className="text-[10px] text-red-400 font-semibold">Executing fast split commands. Compiling ZIP archive inside browser sandbox safely.</p>
               </div>
             ) : !originalPdfBytes ? (
-              <div className="text-center py-6 border border-dashed border-slate-200 rounded-xl bg-slate-50" id="console_empty_notice">
-                <FileText className="w-6 h-6 text-slate-300 mx-auto mb-2" />
-                <p className="text-xs text-slate-500 font-semibold">Upload a consolidated invoices file to unlock immediate downloads</p>
+              <div className="text-center py-6 border border-dashed border-neutral-800 rounded-xl bg-neutral-950" id="console_empty_notice">
+                <FileText className="w-6 h-6 text-neutral-600 mx-auto mb-2" />
+                <p className="text-xs text-neutral-400 font-semibold">Upload a consolidated invoices file to unlock immediate downloads</p>
               </div>
             ) : (
               <div className="flex flex-col gap-3" id="console_active_buttons">
                 <div className="grid grid-cols-2 gap-3">
                   <button 
                     onClick={downloadSelectedAsZip}
-                    className="py-3 px-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 active:translate-y-0.5 transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 text-xs"
+                    className="py-3 px-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:translate-y-0.5 transition-all shadow-md shadow-red-950 flex items-center justify-center gap-2 text-xs"
                     id="export_zip_btn"
                   >
                     <FolderArchive className="w-4 h-4" />
@@ -1282,7 +1282,7 @@ export default function App() {
 
                   <button 
                     onClick={downloadSelectedIndividually}
-                    className="py-3 px-4 bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-200 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-xs"
+                    className="py-3 px-4 bg-neutral-800 border border-neutral-800 text-neutral-200 font-bold rounded-xl hover:bg-neutral-700 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-xs"
                     id="export_bulk_btn"
                   >
                     <Download className="w-4 h-4" />
@@ -1291,16 +1291,16 @@ export default function App() {
                 </div>
                 
                 {/* Visual stats metrics summary */}
-                <div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-100 rounded-xl p-3 text-center" id="metrics_grid">
+                <div className="grid grid-cols-3 gap-2 bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-center" id="metrics_grid">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Selected Items</span>
-                    <span className="text-sm font-extrabold text-slate-800 mt-0.5">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase">Selected Items</span>
+                    <span className="text-sm font-extrabold text-neutral-100 mt-0.5">
                       {invoices.filter(i => i.isSelected).length} of {invoices.length}
                     </span>
                   </div>
-                  <div className="flex flex-col border-x border-slate-200">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Selected Total</span>
-                    <span className="text-sm font-extrabold text-indigo-600 mt-0.5">
+                  <div className="flex flex-col border-x border-neutral-800">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase">Selected Total</span>
+                    <span className="text-sm font-extrabold text-red-500 mt-0.5">
                       ${invoices
                         .filter(i => i.isSelected && !i.isStatement)
                         .reduce((sum, current) => sum + current.total, 0)
@@ -1308,8 +1308,8 @@ export default function App() {
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Pages Extracted</span>
-                    <span className="text-sm font-extrabold text-slate-800 mt-0.5">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase">Pages Extracted</span>
+                    <span className="text-sm font-extrabold text-neutral-100 mt-0.5">
                       {invoices
                         .filter(i => i.isSelected)
                         .reduce((sum, current) => sum + current.pages.length, 0)} of {totalPages}
@@ -1321,100 +1321,100 @@ export default function App() {
           </div>
 
           {/* DYNAMIC REAL-TIME HIGH-FIDELITY INVOICE PREVIEW PANEL */}
-          <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col overflow-hidden" id="pdf_preview_panel">
+          <div className="flex-1 bg-neutral-900 rounded-2xl border border-neutral-800 shadow-sm p-5 flex flex-col overflow-hidden" id="pdf_preview_panel">
             <div className="flex items-center justify-between mb-3.5 flex-shrink-0">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-emerald-600" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Selected Invoice Content Replica</h3>
+                <FileText className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Selected Invoice Content Replica</h3>
               </div>
               {activeInvoicePreview && (
-                <span className="text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] font-mono font-bold text-red-400 bg-red-950 px-2 py-0.5 rounded-md">
                   Pages: {activeInvoicePreview.pages.map(p => p + 1).join(', ')}
                 </span>
               )}
             </div>
 
             {/* Preview Box content */}
-            <div className="flex-1 overflow-y-auto border border-slate-100 rounded-xl bg-slate-50/50 p-4 relative" id="preview_content_scroll">
+            <div className="flex-1 overflow-y-auto border border-neutral-800 rounded-xl bg-neutral-950/50 p-4 relative" id="preview_content_scroll">
               {activeInvoicePreview ? (
-                <div className="bg-white rounded-lg p-5 border border-slate-150 shadow-xs text-[10px] text-slate-700 leading-relaxed font-sans" id="invoice_replica">
+                <div className="bg-neutral-900 rounded-lg p-5 border border-neutral-800 shadow-xs text-[10px] text-neutral-200 leading-relaxed font-sans" id="invoice_replica">
                   
                   {/* Replica Header */}
-                  <div className="flex justify-between items-start border-b border-slate-100 pb-4 mb-4">
+                  <div className="flex justify-between items-start border-b border-neutral-800 pb-4 mb-4">
                     <div>
-                      <h4 className="text-xs font-black text-slate-800 uppercase flex items-center gap-1">
-                        <span className="text-[10px] px-1.5 py-0.5 bg-slate-900 text-white rounded font-mono font-extrabold">NEXUS</span>
+                      <h4 className="text-xs font-black text-neutral-100 uppercase flex items-center gap-1">
+                        <span className="text-[10px] px-1.5 py-0.5 bg-red-700 text-white rounded font-mono font-extrabold">NEXUS</span>
                         Nexus Lane Chicago
                       </h4>
-                      <p className="text-[9px] text-slate-500 mt-1">481 Northeast Industrial Drive · Aurora, IL 60505</p>
-                      <p className="text-[9px] text-slate-400">(872) 277-7707 · il@nexusfleet.us</p>
+                      <p className="text-[9px] text-neutral-400 mt-1">481 Northeast Industrial Drive · Aurora, IL 60505</p>
+                      <p className="text-[9px] text-neutral-500">(872) 277-7707 · il@nexusfleet.us</p>
                     </div>
                     <div className="text-right">
-                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${activeInvoicePreview.isStatement ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}`}>
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${activeInvoicePreview.isStatement ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-emerald-900 text-emerald-300 border border-emerald-800'}`}>
                         {activeInvoicePreview.isStatement ? 'Statement' : 'Invoice'}
                       </span>
-                      <h5 className="text-sm font-extrabold font-mono text-slate-800 mt-1.5">{activeInvoicePreview.invoiceNumber}</h5>
-                      <p className="text-[9px] text-slate-400 font-mono mt-0.5">{activeInvoicePreview.date || 'Statement Period'}</p>
+                      <h5 className="text-sm font-extrabold font-mono text-neutral-100 mt-1.5">{activeInvoicePreview.invoiceNumber}</h5>
+                      <p className="text-[9px] text-neutral-500 font-mono mt-0.5">{activeInvoicePreview.date || 'Statement Period'}</p>
                     </div>
                   </div>
 
                   {/* Customer / Vehicle blocks */}
                   <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Customer / Billed To</span>
-                      <p className="font-extrabold text-slate-800 text-[10px]">{activeInvoicePreview.customer}</p>
-                      <p className="text-[9px] text-slate-500 mt-0.5">billing@gurmanprime.com</p>
+                    <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">
+                      <span className="text-[8px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Customer / Billed To</span>
+                      <p className="font-extrabold text-neutral-100 text-[10px]">{activeInvoicePreview.customer}</p>
+                      <p className="text-[9px] text-neutral-400 mt-0.5">billing@gurmanprime.com</p>
                     </div>
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Vehicle asset</span>
-                      <p className="font-bold text-slate-800 text-[10px]">{activeInvoicePreview.vehicle || 'Multiple Fleet Vehicles'}</p>
-                      <p className="text-[9px] text-slate-500 mt-0.5">Asset Unit: {activeInvoicePreview.isStatement ? 'Fleet Account' : 'Invoiced Truck'}</p>
+                    <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">
+                      <span className="text-[8px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Vehicle asset</span>
+                      <p className="font-bold text-neutral-100 text-[10px]">{activeInvoicePreview.vehicle || 'Multiple Fleet Vehicles'}</p>
+                      <p className="text-[9px] text-neutral-400 mt-0.5">Asset Unit: {activeInvoicePreview.isStatement ? 'Fleet Account' : 'Invoiced Truck'}</p>
                     </div>
                   </div>
 
                   {/* Replica details */}
-                  <div className="border border-slate-100 rounded-lg overflow-hidden mb-4">
-                    <div className="bg-slate-900 text-white font-bold p-1.5 text-[8px] grid grid-cols-12 uppercase tracking-wider">
+                  <div className="border border-neutral-800 rounded-lg overflow-hidden mb-4">
+                    <div className="bg-red-700 text-white font-bold p-1.5 text-[8px] grid grid-cols-12 uppercase tracking-wider">
                       <span className="col-span-2">Type</span>
                       <span className="col-span-5">Service / Part Description</span>
                       <span className="col-span-2 text-right">Qty/Hours</span>
                       <span className="col-span-3 text-right">Total Charge</span>
                     </div>
-                    <div className="divide-y divide-slate-100">
+                    <div className="divide-y divide-neutral-800">
                       {activeInvoicePreview.isStatement ? (
-                        <div className="p-2 text-[9px] text-slate-500 text-center italic">
+                        <div className="p-2 text-[9px] text-neutral-400 text-center italic">
                           This statement summarizes the individual invoice details and totals below.
                         </div>
                       ) : activeInvoicePreview.invoiceNumber === 'INV-2675' ? (
                         <>
                           <div className="p-1.5 grid grid-cols-12">
-                            <span className="col-span-2 font-mono text-[8px] text-slate-400">LABOR</span>
+                            <span className="col-span-2 font-mono text-[8px] text-neutral-500">LABOR</span>
                             <span className="col-span-5">PM Service</span>
                             <span className="col-span-2 text-right font-mono">1</span>
                             <span className="col-span-3 text-right font-mono">$110.00</span>
                           </div>
-                          <div className="p-1.5 grid grid-cols-12 bg-slate-50/50">
-                            <span className="col-span-2 font-mono text-[8px] text-slate-400">PART</span>
+                          <div className="p-1.5 grid grid-cols-12 bg-neutral-950/50">
+                            <span className="col-span-2 font-mono text-[8px] text-neutral-500">PART</span>
                             <span className="col-span-5">FUEL FILTER CASCADIA</span>
                             <span className="col-span-2 text-right font-mono">1</span>
                             <span className="col-span-3 text-right font-mono">$85.00</span>
                           </div>
                           <div className="p-1.5 grid grid-cols-12">
-                            <span className="col-span-2 font-mono text-[8px] text-slate-400">PART</span>
+                            <span className="col-span-2 font-mono text-[8px] text-neutral-500">PART</span>
                             <span className="col-span-5">OIL FILTER CASCADIA</span>
                             <span className="col-span-2 text-right font-mono">1</span>
                             <span className="col-span-3 text-right font-mono">$40.25</span>
                           </div>
-                          <div className="p-1.5 grid grid-cols-12 bg-slate-50/50">
-                            <span className="col-span-2 font-mono text-[8px] text-slate-400">MATL</span>
+                          <div className="p-1.5 grid grid-cols-12 bg-neutral-950/50">
+                            <span className="col-span-2 font-mono text-[8px] text-neutral-500">MATL</span>
                             <span className="col-span-5">10W-30 CASTROL (11 Qty)</span>
                             <span className="col-span-2 text-right font-mono">11</span>
                             <span className="col-span-3 text-right font-mono">$190.30</span>
                           </div>
                         </>
                       ) : (
-                        <div className="p-3 text-[9px] text-slate-500 flex flex-col gap-1.5">
-                          <p className="font-semibold text-slate-700">Service: BASIC PM SERVICES</p>
+                        <div className="p-3 text-[9px] text-neutral-400 flex flex-col gap-1.5">
+                          <p className="font-semibold text-neutral-200">Service: BASIC PM SERVICES</p>
                           <p className="text-[8px] leading-relaxed">System read complete. Extracted text contains multiple descriptions matching vehicle maintenance, parts, and labor fees.</p>
                         </div>
                       )}
@@ -1422,33 +1422,33 @@ export default function App() {
                   </div>
 
                   {/* Bill summaries */}
-                  <div className="flex flex-col items-end gap-1 border-t border-slate-100 pt-3" id="replica_summary_totals">
+                  <div className="flex flex-col items-end gap-1 border-t border-neutral-800 pt-3" id="replica_summary_totals">
                     <div className="flex justify-between w-1/2 text-[9px]">
-                      <span className="text-slate-400">Estimated Charges:</span>
-                      <span className="font-mono text-slate-700">
+                      <span className="text-neutral-500">Estimated Charges:</span>
+                      <span className="font-mono text-neutral-200">
                         {activeInvoicePreview.isStatement ? '$3,977.80' : `$${activeInvoicePreview.total.toFixed(2)}`}
                       </span>
                     </div>
                     <div className="flex justify-between w-1/2 text-[9px]">
-                      <span className="text-slate-400">Sales Tax (8.25%):</span>
-                      <span className="font-mono text-slate-700">Included</span>
+                      <span className="text-neutral-500">Sales Tax (8.25%):</span>
+                      <span className="font-mono text-neutral-200">Included</span>
                     </div>
-                    <div className="flex justify-between w-1/2 font-bold text-slate-800 text-[10px] mt-1 border-t border-slate-100 pt-1">
+                    <div className="flex justify-between w-1/2 font-bold text-neutral-100 text-[10px] mt-1 border-t border-neutral-800 pt-1">
                       <span>BALANCE DUE:</span>
-                      <span className="font-mono text-indigo-700">
+                      <span className="font-mono text-red-400">
                         {activeInvoicePreview.isStatement ? '$3,977.80' : `$${activeInvoicePreview.total.toFixed(2)}`}
                       </span>
                     </div>
                   </div>
 
                   {/* Raw Extracted text expansion panel */}
-                  <div className="mt-4 border-t border-slate-100 pt-3" id="raw_text_extracted_expansion">
+                  <div className="mt-4 border-t border-neutral-800 pt-3" id="raw_text_extracted_expansion">
                     <details className="group">
-                      <summary className="text-[8px] font-bold text-slate-400 uppercase tracking-wider hover:text-indigo-600 transition-colors cursor-pointer list-none flex items-center justify-between">
+                      <summary className="text-[8px] font-bold text-neutral-500 uppercase tracking-wider hover:text-red-500 transition-colors cursor-pointer list-none flex items-center justify-between">
                         <span>Show Extracted Page OCR Raw Text</span>
                         <span className="text-[10px] transition-transform group-open:rotate-90">▶</span>
                       </summary>
-                      <div className="mt-2 p-2 bg-slate-50 border border-slate-150 rounded text-[8px] font-mono whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto text-slate-500">
+                      <div className="mt-2 p-2 bg-neutral-950 border border-neutral-800 rounded text-[8px] font-mono whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto text-neutral-400">
                         {activeInvoicePreview.pages.map(idx => pagesText[idx]).join('\n\n--- NEXT PAGE ---\n\n') || 'No raw OCR text parsed yet.'}
                       </div>
                     </details>
@@ -1456,10 +1456,10 @@ export default function App() {
 
                 </div>
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-slate-400 px-6" id="no_active_preview_view">
-                  <Eye className="w-8 h-8 text-slate-300 mb-2 animate-bounce" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-neutral-500 px-6" id="no_active_preview_view">
+                  <Eye className="w-8 h-8 text-neutral-600 mb-2 animate-bounce" />
                   <p className="text-xs font-semibold">No Invoice Selected</p>
-                  <p className="text-[10px] max-w-xs mt-1 text-slate-400">Click the eye preview icon in any row of the invoice workbench grid to visualize its parsed invoice replica here.</p>
+                  <p className="text-[10px] max-w-xs mt-1 text-neutral-500">Click the eye preview icon in any row of the invoice workbench grid to visualize its parsed invoice replica here.</p>
                 </div>
               )}
             </div>
@@ -1472,18 +1472,18 @@ export default function App() {
       </main>
 
       {/* 3. Bottom Status Bar */}
-      <footer className="h-10 border-t border-slate-200 bg-white px-8 flex items-center justify-between text-[11px] text-slate-400 font-semibold flex-shrink-0" id="main_footer">
+      <footer className="h-10 border-t border-neutral-800 bg-neutral-900 px-8 flex items-center justify-between text-[11px] text-neutral-500 font-semibold flex-shrink-0" id="main_footer">
         <div className="flex items-center gap-4" id="footer_left">
           <span>Release build v2.4.0-pro</span>
-          <span className="h-3 w-[1px] bg-slate-200"></span>
+          <span className="h-3 w-[1px] bg-neutral-700"></span>
           <span>GDPR Compliant Sandbox Processing</span>
-          <span className="h-3 w-[1px] bg-slate-200"></span>
+          <span className="h-3 w-[1px] bg-neutral-700"></span>
           <span>100% Safe client encryption</span>
         </div>
         <div className="flex items-center gap-4" id="footer_right">
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>All client routines active</span>
-          <span className="text-slate-200">|</span>
-          <a href="#" className="hover:text-indigo-600 transition-colors" onClick={(e) => { e.preventDefault(); alert("Invoice Splitter parsing algorithm uses string boundaries matching 'INV-\\d+', separating invoices based on matching sequential headers or statement tables."); }}>API & Parsing documentation</a>
+          <span className="text-neutral-700">|</span>
+          <a href="#" className="hover:text-red-500 transition-colors" onClick={(e) => { e.preventDefault(); alert("Invoice Splitter parsing algorithm uses string boundaries matching 'INV-\\d+', separating invoices based on matching sequential headers or statement tables."); }}>API & Parsing documentation</a>
         </div>
       </footer>
 
