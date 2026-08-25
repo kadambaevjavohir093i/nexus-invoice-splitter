@@ -158,7 +158,7 @@ export async function parsePdfInvoices(
     if (i === 0 && isPage1Statement) {
       const customer = statementCustomer || 'Gurman Trucking';
       const fileDateSuffix = periodStr ? ` (${periodStr.replace(/\//g, '-')})` : '';
-      invoices.push({
+      const statementGroup: InvoiceGroup = {
         id: 'statement',
         invoiceNumber: 'Statement',
         customer,
@@ -169,7 +169,12 @@ export async function parsePdfInvoices(
         filename: `Statement - ${customer}${fileDateSuffix}.pdf`,
         isSelected: true,
         isStatement: true
-      });
+      };
+      invoices.push(statementGroup);
+      // Keep the statement as the current group so a multi-page statement's
+      // continuation pages are appended to it instead of becoming their own
+      // standalone "Page X" files.
+      currentGroup = statementGroup;
       continue;
     }
 
@@ -180,7 +185,17 @@ export async function parsePdfInvoices(
 
     if (invMatch && hasInvoiceHeader) {
       const invNum = invMatch[1];
-      
+
+      // Multi-page invoices often repeat the invoice number on every page.
+      // If we've already opened a group for this number, this page is a
+      // continuation of that invoice — not a new one.
+      const existingGroup = invoices.find(g => !g.isStatement && g.invoiceNumber === invNum);
+      if (existingGroup) {
+        existingGroup.pages.push(i);
+        currentGroup = existingGroup;
+        continue;
+      }
+
       // Check if we already have metadata from the parsed statement
       const matchedStmt = statementInvoices.find(s => s.invoiceNumber === invNum);
       
