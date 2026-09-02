@@ -38,6 +38,29 @@ export async function extractTextFromPdf(pdfBytes: Uint8Array): Promise<string[]
 }
 
 /**
+ * PDF text layers frequently break an invoice number into separate text items,
+ * so the extracted text reads "INV- 2845" or even "SO- 0000006 4" instead of
+ * "INV-2845" / "SO-00000064". Repair those tokens before any matching so a
+ * single invoice is recognised no matter how the PDF happened to encode it.
+ */
+function normalizeInvoiceNumbers(text: string): string {
+  return text
+    // "INV - 2845" / "INV- 2845" -> "INV-2845"
+    .replace(/\b(INV|SO)\s*-\s*/gi, (_m, prefix: string) => `${prefix.toUpperCase()}-`)
+    // "SO-0000006 4" -> "SO-00000064" (digits split across text items).
+    // Only single-space splits are joined, so table columns separated by wider
+    // gaps (e.g. "INV-2845   —   ... 7/15/2026") are never merged by accident.
+    .replace(/\b(INV|SO)-(\d+(?: \d+)+)/gi, (whole, prefix: string, digits: string) => {
+      const joined = digits.replace(/ /g, '');
+      return joined.length <= 12 ? `${prefix.toUpperCase()}-${joined}` : whole;
+    });
+}
+
+// Invoice identifiers come in both "INV-####" and "SO-########" flavours.
+const INVOICE_NUMBER_RE = /\b((?:INV|SO)-\d+)/;
+const INVOICE_NUMBER_RE_G = /\b((?:INV|SO)-\d+)/g;
+
+/**
  * Parses page texts and detects invoices, grouping multi-page invoices dynamically.
  */
 export async function parsePdfInvoices(
@@ -49,8 +72,11 @@ export async function parsePdfInvoices(
   
   if (numPages === 0) return [];
 
+  // Work on repaired text throughout so split invoice-number tokens still match.
+  const normalizedPages = pagesText.map(t => normalizeInvoiceNumbers(t || ''));
+
   // Check if Page 1 is a Statement summarizing the individual invoices
-  const page1Text = pagesText[0] || '';
+  const page1Text = normalizedPages[0] || '';
   const isPage1Statement = 
     page1Text.toLowerCase().includes('statement') && 
     (page1Text.toLowerCase().includes('balance due') || page1Text.toLowerCase().includes('totals'));
@@ -95,8 +121,8 @@ export async function parsePdfInvoices(
 
     // Regex to capture invoice table rows
     // Standard row looks like: "INV-2675 — 2025 FREIGHTLINER Cascadia 3AKJHHDR5SSWA6179 · Unit: 1215 6/23/2026 $577.56"
-    // Let's scan for all "INV-\d+" patterns and capture surrounding info
-    const invoiceMatches = [...page1Text.matchAll(/(INV-\d+)/g)];
+    // Let's scan for all invoice-number patterns and capture surrounding info
+    const invoiceMatches = [...page1Text.matchAll(INVOICE_NUMBER_RE_G)];
     for (let j = 0; j < invoiceMatches.length; j++) {
       const match = invoiceMatches[j];
       const invNum = match[1];
@@ -151,7 +177,7 @@ export async function parsePdfInvoices(
   let currentGroup: InvoiceGroup | null = null;
 
   for (let i = 0; i < numPages; i++) {
-    const text = pagesText[i];
+    const text = normalizedPages[i];
     const lowercaseText = text.toLowerCase();
     
     // Page 1 is the statement summary page
@@ -180,8 +206,9 @@ export async function parsePdfInvoices(
 
     // Check if this page starts a new invoice
     // Look for standard Invoice indicators e.g., "Invoice" text at top, and "INV-\d+"
-    const invMatch = text.match(/(INV-\d+)/);
-    const hasInvoiceHeader = lowercaseText.includes('invoice') || lowercaseText.includes('inv-');
+    const invMatch = text.match(INVOICE_NUMBER_RE);
+    const hasInvoiceHeader =
+      lowercaseText.includes('invoice') || lowercaseText.includes('inv-') || lowercaseText.includes('so-');
 
     if (invMatch && hasInvoiceHeader) {
       const invNum = invMatch[1];
@@ -245,7 +272,14 @@ export async function parsePdfInvoices(
         unitNumber
       };
       invoices.push(currentGroup);
-    } else if (currentGroup && !currentGroup.id.startsWith('page_')) {
+    } else if (
+      currentGroup &&
+      !currentGroup.id.startsWith('page_') &&
+      // A page only continues the statement when it still reads like the
+      // statement itself. Otherwise a failure to recognise invoice pages would
+      // silently sweep the whole document into the Statement file.
+      (!currentGroup.isStatement || (lowercaseText.includes('statement') && !lowercaseText.includes('invoice')))
+    ) {
       // Continuation page! Group it with the current invoice
       currentGroup.pages.push(i);
     } else {
