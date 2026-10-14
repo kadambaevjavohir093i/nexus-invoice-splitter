@@ -61,6 +61,23 @@ const INVOICE_NUMBER_RE = /\b((?:INV|SO)-\d+)/;
 const INVOICE_NUMBER_RE_G = /\b((?:INV|SO)-\d+)/g;
 
 /**
+ * True when a PDF actually carries a text layer we can parse.
+ *
+ * Some PDFs reach us with every character flattened into vector outlines or a
+ * scanned image — typically because the file was "printed" through a virtual
+ * PDF printer rather than saved from the source system. Those pages extract as
+ * empty strings, so invoice detection silently degrades into one meaningless
+ * "Page N" entry per page. Detect it up front so the user is told what is wrong
+ * instead of being handed unusable output.
+ */
+export function hasExtractableText(pagesText: string[]): boolean {
+  const totalChars = pagesText.reduce((sum, t) => sum + (t || '').trim().length, 0);
+  // A genuine invoice page carries hundreds of characters; this threshold only
+  // rejects documents with essentially nothing extractable at all.
+  return totalChars >= 50;
+}
+
+/**
  * Parses page texts and detects invoices, grouping multi-page invoices dynamically.
  */
 export async function parsePdfInvoices(
