@@ -27,7 +27,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import JSZip from 'jszip';
 import { InvoiceGroup, UploadedFile } from './types';
-import { extractTextFromPdf, parsePdfInvoices, splitPdfPages } from './utils/pdfParser';
+import { extractTextFromPdf, hasExtractableText, parsePdfInvoices, splitPdfPages } from './utils/pdfParser';
 import { generateSampleInvoicePdf } from './utils/sampleGenerator';
 
 export default function App() {
@@ -279,6 +279,7 @@ export default function App() {
 
     const newUploadedFiles: UploadedFile[] = [];
     const failedFiles: string[] = [];
+    const noTextFiles: string[] = [];
 
     for (let i = 0; i < filesToProcess.length; i++) {
       const file = filesToProcess[i];
@@ -288,7 +289,15 @@ export default function App() {
 
         // Extract text from the PDF pages
         const extractedText = await extractTextFromPdf(bytes);
-        
+
+        // A PDF whose text was flattened to outlines or scanned to images has
+        // nothing to parse. Reject it with a clear reason rather than emitting
+        // one meaningless "Page N" entry per page.
+        if (!hasExtractableText(extractedText)) {
+          noTextFiles.push(file.name);
+          continue;
+        }
+
         // Parse text and group into invoices
         const parsedInvoices = await parsePdfInvoices(bytes, extractedText);
 
@@ -309,11 +318,22 @@ export default function App() {
       }
     }
 
+    // A PDF that was "printed" to PDF has no text layer at all. Spell out the
+    // cause and the remedy — the file looks normal on screen, so otherwise this
+    // is impossible to diagnose from the app.
+    const noTextAdvice =
+      'This PDF has no text layer — its text was flattened into images or outlines, ' +
+      'which happens when a statement is printed through a virtual PDF printer ' +
+      '(e.g. PDF-XChange, "Microsoft Print to PDF") instead of being saved. ' +
+      'Download or save the original PDF from your billing system and upload that file.';
+
     if (newUploadedFiles.length === 0) {
       setErrorMessage(
-        failedFiles.length > 0
-          ? `Could not read: ${failedFiles.join(', ')}. Make sure they are valid, non-password-protected PDF files.`
-          : 'Failed to parse the uploaded PDF files.'
+        noTextFiles.length > 0
+          ? `${noTextFiles.join(', ')}: ${noTextAdvice}`
+          : failedFiles.length > 0
+            ? `Could not read: ${failedFiles.join(', ')}. Make sure they are valid, non-password-protected PDF files.`
+            : 'Failed to parse the uploaded PDF files.'
       );
       setStatus('error');
       return;
@@ -323,6 +343,10 @@ export default function App() {
     // otherwise it looks like the app only accepted one file.
     if (failedFiles.length > 0) {
       alert(`${newUploadedFiles.length} file(s) loaded, but ${failedFiles.length} could not be read and were skipped:\n\n${failedFiles.join('\n')}\n\nMake sure they are valid, non-password-protected PDFs.`);
+    }
+
+    if (noTextFiles.length > 0) {
+      alert(`${noTextFiles.length} file(s) were skipped:\n\n${noTextFiles.join('\n')}\n\n${noTextAdvice}`);
     }
 
     setUploadedFiles(prev => {
