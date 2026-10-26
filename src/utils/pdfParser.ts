@@ -1,9 +1,12 @@
 import { PDFDocument } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
+// pdf.js's default build relies on very new built-ins (e.g. Map.getOrInsertComputed)
+// and fails when rendering pages in browsers that lack them. The legacy build
+// bundles polyfills for those, so the app works across current browsers.
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { InvoiceGroup } from '../types';
 
 // Establish worker for PDF.js using an unpkg CDN to ensure matching versions
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version || '4.0.370'}/build/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version || '4.0.370'}/legacy/build/pdf.worker.min.mjs`;
 
 /**
  * Extracts raw text page by page from a PDF Uint8Array.
@@ -61,14 +64,31 @@ const INVOICE_NUMBER_RE = /\b((?:INV|SO)-\d+)/;
 const INVOICE_NUMBER_RE_G = /\b((?:INV|SO)-\d+)/g;
 
 /**
- * True when a PDF actually carries a text layer we can parse.
+ * Statements printed from bigshop carry a browser header on every page such as
+ * "Statement - US MEGA (2026-07-14 to 2026-10-12)". It names the customer
+ * exactly and survives OCR, unlike the small "BILL TO" label.
+ */
+function customerFromStatementHeader(text: string): string {
+  const m = text.match(/Statement\s*[-–]\s*([^()\n]{2,60}?)\s*\(\d{4}-\d{2}-\d{2}/);
+  return m ? m[1].trim() : '';
+}
+
+// Unit IDs are usually numeric ("1326") but can be alphanumeric ("PTLZ262100").
+function extractUnitNumber(text: string): string {
+  const m =
+    text.match(/Unit\s*#?\s*:\s*([A-Z]*\d[A-Z0-9]*)/i) ||
+    text.match(/Unit\s*#?\s*([A-Z]*\d[A-Z0-9]*)/i);
+  return m ? m[1] : '';
+}
+
+/**
+ * True when a PDF actually carries text we can parse.
  *
- * Some PDFs reach us with every character flattened into vector outlines or a
- * scanned image — typically because the file was "printed" through a virtual
- * PDF printer rather than saved from the source system. Those pages extract as
- * empty strings, so invoice detection silently degrades into one meaningless
- * "Page N" entry per page. Detect it up front so the user is told what is wrong
- * instead of being handed unusable output.
+ * Scanned PDFs, and PDFs "printed" through a virtual PDF printer with every
+ * character flattened into outlines, have no text layer; the app reads those
+ * pages with OCR first. If a document still has essentially no text after that,
+ * invoice detection would silently degrade into one meaningless "Page N" entry
+ * per page, so the caller rejects it with an explanation instead.
  */
 export function hasExtractableText(pagesText: string[]): boolean {
   const totalChars = pagesText.reduce((sum, t) => sum + (t || '').trim().length, 0);
@@ -111,22 +131,17 @@ export async function parsePdfInvoices(
   let periodStr = '';
 
   if (isPage1Statement) {
-    // Extract customer from Page 1
-    // Look for "BILL TO" section
+    // Extract customer from Page 1: the printed page header is the most
+    // reliable source, then the "BILL TO" section.
+    statementCustomer = customerFromStatementHeader(page1Text);
     const billToIdx = page1Text.indexOf('BILL TO');
-    if (billToIdx !== -1) {
+    if (!statementCustomer && billToIdx !== -1) {
       const afterBillTo = page1Text.substring(billToIdx + 7).trim();
       // Grab customer (first text chunk after BILL TO)
       const parts = afterBillTo.split(/\s{2,}/);
       if (parts.length > 0 && parts[0]) {
         statementCustomer = parts[0].trim();
       }
-    }
-    
-    // Fallback Customer extraction
-    if (!statementCustomer) {
-      const customerMatch = page1Text.match(/Gurman Trucking/i);
-      statementCustomer = customerMatch ? customerMatch[0] : 'Gurman Trucking';
     }
 
     // Extract Period for filename
@@ -158,8 +173,7 @@ export async function parsePdfInvoices(
       const total = totalMatch ? parseFloat(totalMatch[1]) : 0;
 
       // Extract Unit Number if present in context
-      const unitMatch = context.match(/Unit\s*#?\s*:\s*(\d+)/i) || context.match(/Unit\s*#?\s*(\d+)/i);
-      const unitNumber = unitMatch ? unitMatch[1] : '';
+      const unitNumber = extractUnitNumber(context);
 
       // Extract Vehicle Name
       // It sits between "INV-XXXX — " (or space) and the date or VIN
@@ -199,7 +213,7 @@ export async function parsePdfInvoices(
     
     // Page 1 is the statement summary page
     if (i === 0 && isPage1Statement) {
-      const customer = statementCustomer || 'Gurman Trucking';
+      const customer = statementCustomer;
       const fileDateSuffix = periodStr ? ` (${periodStr.replace(/\//g, '-')})` : '';
       const statementGroup: InvoiceGroup = {
         id: 'statement',
@@ -209,7 +223,7 @@ export async function parsePdfInvoices(
         date: 'Statement Period',
         total: statementInvoices.reduce((sum, item) => sum + item.total, 0),
         pages: [0],
-        filename: `Statement - ${customer}${fileDateSuffix}.pdf`,
+        filename: `Statement${customer ? ` - ${customer}` : ''}${fileDateSuffix}.pdf`,
         isSelected: true,
         isStatement: true
       };
@@ -249,15 +263,15 @@ export async function parsePdfInvoices(
       let total = 0;
 
       if (matchedStmt) {
-        customer = statementCustomer || 'Gurman Trucking';
+        customer = statementCustomer || customerFromStatementHeader(text);
         vehicle = matchedStmt.vehicle;
         date = matchedStmt.date;
         total = matchedStmt.total;
       } else {
         // Parse metadata directly from the page
         // Customer Name
-        const custMatch = text.match(/CUSTOMER\s+([^\n•]+)/i) || text.match(/Gurman Trucking/i);
-        customer = custMatch ? custMatch[1]?.trim() || custMatch[0].trim() : 'Gurman Trucking';
+        const custMatch = text.match(/CUSTOMER\s+([^\n•]+)/i);
+        customer = custMatch ? custMatch[1].trim() : statementCustomer || customerFromStatementHeader(text);
         
         // Vehicle Name
         const vehMatch = text.match(/VEHICLE\s+([^\n•]+)/i) || text.match(/(?:20\d{2}\s+[A-Za-z0-9\s]{4,30})/);
@@ -272,8 +286,10 @@ export async function parsePdfInvoices(
         total = totalMatch ? parseFloat(totalMatch[1]) : 0;
       }
 
-      const pageUnitMatch = text.match(/Unit\s*#?\s*:\s*(\d+)/i) || text.match(/Unit\s*#?\s*(\d+)/i) || text.match(/Unit\s+(\d+)/i);
-      const unitNumber = pageUnitMatch ? pageUnitMatch[1] : (matchedStmt?.unitNumber || '');
+      // Prefer the statement's unit: it sits alone in a clean table cell, while
+      // the invoice page prints it beside the mileage ("Unit #: 1159 • 0 mi"),
+      // which OCR can fuse into "11590".
+      const unitNumber = matchedStmt?.unitNumber || extractUnitNumber(text);
 
       currentGroup = {
         id: invNum,
