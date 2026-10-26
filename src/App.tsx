@@ -319,7 +319,9 @@ export default function App() {
         }
 
         // Parse text and group into invoices
-        const parsedInvoices = await parsePdfInvoices(bytes, extractedText);
+        const parsedInvoices = await parsePdfInvoices(bytes, extractedText, {
+          ocrPageIndexes: usedOcr ? ocrTargets : []
+        });
 
         const newFile: UploadedFile = {
           id: `${Date.now()}-${i}-${Math.random().toString(36).substring(2, 7)}`,
