@@ -1,0 +1,716 @@
+<title>Invoice Splitter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  /* Layout: a workbench. Controls and progress on the left, carrier folders on the right,
+     one primary action (download the ZIP) at the end of the results. Dark, with red kept for actions. */
+  :root {
+    --bg: #0f0d0e;
+    --surface: #18151a;
+    --surface-2: #211d23;
+    --line: #2e2930;
+    --fg: #ede8eb;
+    --muted: #9b9399;
+    --accent: #e0342c;
+    --accent-hover: #c92a23;
+    --accent-ink: #ffffff;
+    --ok: #46b383;
+    --warn: #e2a83f;
+    --bad: #f0605a;
+    --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  html, body { background: var(--bg); color: var(--fg); }
+  body { font-family: var(--font-ui); font-size: 14px; line-height: 1.5; }
+  .wrap {
+    max-width: 1240px; margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 40px;
+    display: grid; gap: 20px;
+  }
+  h1, h2, h3 { margin: 0; text-wrap: balance; }
+  button { font: inherit; cursor: pointer; }
+  button:focus-visible, label.drop:focus-within, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .mark { width: 38px; height: 38px; border-radius: 9px; background: var(--accent); display: grid; place-items: center; color: var(--accent-ink); flex: none; }
+  .brand h1 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand p { margin: 0; font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; color: var(--muted); background: var(--surface); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.on { background: var(--ok); }
+  .dot.off { background: var(--bad); }
+
+  .grid { display: grid; gap: 20px; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+
+  label.drop { display: grid; gap: 6px; justify-items: center; text-align: center; padding: 26px 14px; border: 1.5px dashed var(--line); border-radius: 12px; background: var(--surface-2); cursor: pointer; transition: border-color .15s; }
+  label.drop:hover, label.drop.over { border-color: var(--accent); }
+  label.drop strong { font-size: 15px; }
+  label.drop span { color: var(--muted); font-size: 12px; }
+  label.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+  .files { display: grid; gap: 6px; }
+  .file { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; font-size: 13px; min-width: 0; }
+  .file span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .file span:last-child { color: var(--muted); font-family: var(--font-data); font-size: 12px; flex: none; }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); border-radius: 10px; padding: 10px 16px; font-weight: 600; }
+  .btn:hover:not(:disabled) { border-color: var(--muted); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.grow { flex: 1 1 auto; }
+
+  .steps { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .step { display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+  .step .n { font-family: var(--font-data); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tick { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--line); }
+  .step.active .tick { border-color: var(--accent); border-top-color: transparent; animation: spin .8s linear infinite; }
+  .step.done .tick { border-color: var(--ok); background: var(--ok); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .step.active .tick { animation: none; border-top-color: var(--accent); } }
+  .meter { height: 4px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+
+  .note { font-size: 12px; color: var(--muted); margin: 0; }
+  .msg { padding: 10px 12px; border-radius: 10px; font-size: 13px; border: 1px solid var(--line); background: var(--surface-2); }
+  .msg.bad { border-color: color-mix(in srgb, var(--bad) 45%, transparent); color: var(--bad); }
+  .msg.warn { border-color: color-mix(in srgb, var(--warn) 45%, transparent); color: var(--warn); }
+
+  .summary { display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: baseline; }
+  .stat { display: grid; }
+  .stat b { font-family: var(--font-data); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .tag { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+
+  .folder { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; min-width: 0; }
+  .folder-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 14px; background: var(--surface-2); }
+  .folder-head h3 { font-size: 15px; display: flex; align-items: center; gap: 10px; }
+  .folder-head h3 code { font-family: var(--font-data); font-size: 13px; color: var(--muted); font-weight: 500; }
+  .count { font-family: var(--font-data); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .count.ok { color: var(--ok); }
+  .count.check { color: var(--warn); }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); padding: 8px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 8px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.mono { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chip { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .chip.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+  .chip.check { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+  .chip.stmt { color: var(--muted); background: var(--surface-2); }
+  .warnings { margin: 0; padding: 10px 14px 12px 32px; display: grid; gap: 4px; font-size: 12.5px; color: var(--warn); border-top: 1px solid var(--line); }
+  .folders { display: grid; gap: 14px; }
+  .example .folder { opacity: .72; }
+</style>
+
+<div class="wrap">
+  <header class="bar">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6M9 16h6M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.6a1 1 0 0 1 .7.3l5.4 5.4a1 1 0 0 1 .3.7V19a2 2 0 0 1-2 2z"/></svg>
+      </div>
+      <div>
+        <h1>Invoice Splitter</h1>
+        <p>Claude reads the pages</p>
+      </div>
+    </div>
+    <div class="pill" id="claudeStatus"><span class="dot" id="claudeDot"></span><span id="claudeText">Connecting to Claude…</span></div>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="inputTitle">
+      <div class="label" id="inputTitle">Statement batches</div>
+      <label class="drop" id="drop">
+        <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple>
+        <strong>Drop PDF batches here</strong>
+        <span>or click to choose · scanned and printed PDFs work · several statements per file are fine</span>
+      </label>
+      <div class="files" id="fileList"></div>
+      <div class="actions">
+        <button class="btn primary grow" id="runBtn" disabled>Split with Claude</button>
+        <button class="btn" id="stopBtn" hidden>Stop</button>
+      </div>
+      <div id="runMsg" class="msg" hidden></div>
+
+      <div class="label">Progress</div>
+      <ol class="steps">
+        <li class="step" id="stepHeaders"><span class="tick"></span><span>Read invoice numbers from page headers</span><span class="n" id="nHeaders">–</span></li>
+        <li class="step" id="stepStatements"><span class="tick"></span><span>Read statement tables (units, totals)</span><span class="n" id="nStatements">–</span></li>
+        <li class="step" id="stepGroup"><span class="tick"></span><span>Group pages and check against statements</span><span class="n" id="nGroup">–</span></li>
+      </ol>
+      <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+      <p class="note" id="usageNote">Each page's header and every statement page are sent to Claude as images. This uses your Claude plan, like a chat message with attachments. Repeating the same batch within 5 minutes uses no extra usage.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="resultsTitle">
+      <div class="bar">
+        <div class="label" id="resultsTitle">Carrier folders</div>
+        <span class="tag" id="exampleTag">Example</span>
+      </div>
+      <div class="summary" id="summary"></div>
+      <div class="folders" id="folders"></div>
+      <div class="actions">
+        <button class="btn primary grow" id="zipBtn" disabled>Download ZIP</button>
+      </div>
+      <div id="zipMsg" class="msg" hidden></div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script type="module">
+import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+
+// ---------- Tuning ----------
+// Claude downsizes every image to about 1.2 megapixels, so each region is rendered at that size:
+// the page header for invoice pages, and overlapping horizontal strips for statement tables,
+// where unit numbers are printed small.
+const TARGET_PIXELS = 1.15e6;
+const HEADER_BAND = 0.30;              // top 30% of a page: invoice number and "Unit #"
+const STRIPS = [[0, 0.31], [0.24, 0.55], [0.48, 0.79], [0.72, 1]]; // overlap > one table row
+const MAX_HEADERS_PER_CALL = 8;
+const PARALLEL_CALLS = 2;              // the platform runs about two calls at once per viewer
+
+const $ = (id) => document.getElementById(id);
+const state = { files: [], running: false, ctl: null, sections: null };
+let sample = null;
+let downloads = null;
+
+// ---------- Claude capabilities ----------
+const setClaudeStatus = (kind, text) => {
+  $("claudeDot").className = "dot " + kind;
+  $("claudeText").textContent = text;
+};
+if (!window.claude?.use) {
+  setClaudeStatus("off", "Open this page in claude.ai to use Claude");
+} else {
+  window.claude.use("sample").then((s) => {
+    sample = s;
+    if (s) setClaudeStatus("on", "Uses your Claude plan");
+    else setClaudeStatus("off", "Claude isn't available in this view");
+    refreshButtons();
+  });
+  window.claude.use("downloads").then((d) => { downloads = d; refreshButtons(); });
+}
+
+// ---------- File input ----------
+const fileInput = $("fileInput");
+const drop = $("drop");
+fileInput.addEventListener("change", () => addFiles(fileInput.files));
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); addFiles(e.dataTransfer.files); });
+
+async function addFiles(list) {
+  if (state.running) return;
+  for (const f of [...list]) {
+    if (!/\.pdf$/i.test(f.name) && f.type !== "application/pdf") continue;
+    try {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      // pdf.js takes ownership of the buffer it is given; keep our own copy for splitting.
+      const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+      state.files.push({ name: f.name, bytes, pdf, numPages: pdf.numPages, pages: {}, statements: {} });
+    } catch (err) {
+      showMsg("runMsg", "bad", `${f.name} couldn't be opened as a PDF.`);
+    }
+  }
+  fileInput.value = "";
+  renderFiles();
+  refreshButtons();
+}
+
+function renderFiles() {
+  const box = $("fileList");
+  box.replaceChildren(...state.files.map((f) => {
+    const row = document.createElement("div");
+    row.className = "file";
+    const name = document.createElement("span"); name.textContent = f.name; name.title = f.name;
+    const pages = document.createElement("span"); pages.textContent = `${f.numPages} pages`;
+    row.append(name, pages);
+    return row;
+  }));
+  const total = state.files.reduce((s, f) => s + f.numPages, 0);
+  if (total) {
+    $("usageNote").textContent =
+      `About ${Math.ceil(total / MAX_HEADERS_PER_CALL)} Claude requests for ${total} page headers, plus one per statement page. ` +
+      `This uses your Claude plan, like a chat message with attachments. Repeating the same batch within 5 minutes uses no extra usage.`;
+  }
+}
+
+function refreshButtons() {
+  $("runBtn").disabled = state.running || !sample || state.files.length === 0;
+  $("stopBtn").hidden = !state.running;
+  $("zipBtn").disabled = state.running || !state.sections || !downloads;
+}
+
+function showMsg(id, kind, text) {
+  const el = $(id);
+  el.hidden = !text;
+  el.className = "msg" + (kind ? " " + kind : "");
+  el.textContent = text || "";
+}
+
+// ---------- Rendering ----------
+async function renderRegion(pdf, pageNo, top, bottom) {
+  const page = await pdf.getPage(pageNo);
+  const base = page.getViewport({ scale: 1 });
+  const share = bottom - top;
+  const scale = Math.min(4, Math.sqrt(TARGET_PIXELS / (base.width * base.height * share)));
+  const viewport = page.getViewport({ scale, offsetY: -top * base.height * scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(base.width * scale);
+  canvas.height = Math.round(base.height * share * scale);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+  canvas.width = canvas.height = 0;
+  return blob;
+}
+
+// ---------- Prompts ----------
+const headerPrompt = (pageNos) => `You are reading the TOP 30% of pages from a truck-repair shop's billing PDF. The shop's customers are trucking carriers.
+There are ${pageNos.length} images, in order. They are pages ${pageNos.join(", ")} of the PDF.
+
+For each image decide what the page is:
+- "statement": the FIRST page of a customer statement: a large "Statement" title, a statement number like "#ST-7F36C6AE", a BILL TO customer.
+- "statement_cont": a later page of a statement: a table with rows for SEVERAL invoices, or the statement's TOTALS / BALANCE DUE block, with no new "Statement" title.
+- "invoice": a page of ONE invoice: the word "Invoice" or "INVOICE" and one invoice number, such as "INV-9647" (often printed as "INV-" with "DUE ON RECEIPT 9647" below it) or "SO-00000064".
+- "other": blank, unreadable, or none of the above.
+
+For "invoice" pages also give:
+- "invoice": the invoice number as INV-<digits> or SO-<digits>. Never a ZIP code (e.g. "FL 32750"), phone number or date.
+- "first": true if the page shows the BILL TO / VEHICLE block (the invoice's first page); false if it only repeats the invoice header (a later page of the same invoice).
+- "unit": the truck unit from "Unit #: <unit>" if it is visible. It may contain letters and digits (e.g. "PTLZ262100"). Stop before the "•" and the mileage. Otherwise null.
+
+Read digits carefully. Reply with only a JSON array, one object per image, in the same order:
+[{"page": 2, "kind": "invoice", "invoice": "INV-9647", "first": true, "unit": "1210"}]`;
+
+const statementPrompt = (pageNo, count) => `These ${count} images are horizontal strips of page ${pageNo} of a customer statement from a truck-repair shop, from top to bottom. Neighbouring strips overlap, so a row can appear twice: list it once.
+
+Extract:
+- "customer": the BILL TO customer name, or null if this page has none.
+- "statedCount": the invoice count stated in the header line ("Period: … · 30 invoices · 12 vehicles"), or null if this page has none.
+- "invoices": every invoice row of the table, top to bottom: {"invoice": "INV-9647", "unit": "1210", "date": "9/28/2026", "total": "1264.75"}.
+  The invoice number may be split over two lines ("INV-" above "9647"). The unit is the value after "Unit:" under the vehicle; it may contain letters (e.g. "PTLZ262100"); use null if the row has no unit. total is the TOTAL column without "$" or commas.
+
+Read every digit carefully: these numbers become file names. Reply with only JSON:
+{"customer": "Gurman Trucking", "statedCount": 30, "invoices": [{"invoice": "INV-9647", "unit": "1210", "date": "9/28/2026", "total": "1264.75"}]}`;
+
+// ---------- Normalising Claude's answers ----------
+const normKind = (k) => (["statement", "statement_cont", "invoice"].includes(k) ? k : "other");
+function normInvoice(v) {
+  const m = String(v ?? "").toUpperCase().replace(/\s+/g, "").match(/^(INV|SO)-?(\d{3,12})$/);
+  return m ? `${m[1]}-${m[2]}` : null;
+}
+function normUnit(v) {
+  const m = String(v ?? "").toUpperCase().match(/[A-Z0-9][A-Z0-9-]*/);
+  return m && /\d/.test(m[0]) ? m[0] : null;
+}
+const toNumber = (v) => {
+  const n = parseFloat(String(v ?? "").replace(/[$,\s]/g, ""));
+  return Number.isFinite(n) ? n : null;
+};
+
+// ---------- Job pool: a couple of Claude calls at a time ----------
+function makePool(limit) {
+  const queue = [];
+  let active = 0;
+  let failure = null;
+  const waiters = [];
+  const pump = () => {
+    while (!failure && active < limit && queue.length) {
+      const job = queue.shift();
+      active++;
+      job()
+        .catch((err) => { if (!failure) { failure = err; state.ctl?.abort(); } })
+        .finally(() => { active--; pump(); });
+    }
+    if (active === 0 && (failure || queue.length === 0)) waiters.splice(0).forEach((w) => w());
+  };
+  return {
+    add(job, first = false) { first ? queue.unshift(job) : queue.push(job); pump(); },
+    idle() { return new Promise((resolve) => { waiters.push(resolve); pump(); }).then(() => { if (failure) throw failure; }); },
+  };
+}
+
+// ---------- The run ----------
+const progress = { headers: 0, headersTotal: 0, statements: 0, statementsFound: 0 };
+
+function setStep(id, status, count) {
+  const el = $(id);
+  el.classList.toggle("active", status === "active");
+  el.classList.toggle("done", status === "done");
+  if (count !== undefined) el.querySelector(".n").textContent = count;
+}
+function renderProgress() {
+  const p = progress;
+  setStep("stepHeaders", p.headers >= p.headersTotal && p.headersTotal ? "done" : "active", `${p.headers}/${p.headersTotal}`);
+  const statementsDone = p.headers >= p.headersTotal && p.statements >= p.statementsFound;
+  setStep("stepStatements", statementsDone ? "done" : p.statementsFound ? "active" : "", `${p.statements}/${p.statementsFound}`);
+  const work = p.headersTotal + p.statementsFound * 2;
+  $("meter").style.width = work ? `${Math.round(((p.headers + p.statements * 2) / work) * 95)}%` : "0";
+}
+
+async function run() {
+  if (!sample || state.running || !state.files.length) return;
+  const limits = await sample.limits().catch(() => null);
+  if (!limits?.images) {
+    showMsg("runMsg", "bad", "This view can't send images to Claude. Open the page in claude.ai and try again.");
+    return;
+  }
+  const perCall = Math.max(1, Math.min(limits.images.maxCount, MAX_HEADERS_PER_CALL));
+  const strips = limits.images.maxCount >= STRIPS.length ? STRIPS : [[0, 0.55], [0.45, 1]];
+
+  state.running = true;
+  state.sections = null;
+  state.ctl = new AbortController();
+  const signal = state.ctl.signal;
+  showMsg("runMsg", "", "Claude is reading the pages. The first request asks you to allow Claude for this page.");
+  showMsg("zipMsg", "", "");
+  Object.assign(progress, { headers: 0, statements: 0, statementsFound: 0,
+    headersTotal: state.files.reduce((s, f) => s + f.numPages, 0) });
+  setStep("stepGroup", "", "–");
+  renderProgress();
+  refreshButtons();
+  const started = performance.now();
+
+  const pool = makePool(PARALLEL_CALLS);
+
+  const readStatement = async (file, pageNo) => {
+    const images = [];
+    for (const [top, bottom] of strips) images.push(await renderRegion(file.pdf, pageNo, top, bottom));
+    const out = await sample.json(statementPrompt(pageNo, images.length), { images, signal });
+    file.statements[pageNo] = {
+      customer: typeof out?.customer === "string" && out.customer.trim() ? out.customer.trim() : null,
+      statedCount: Number.isFinite(parseInt(out?.statedCount, 10)) ? parseInt(out.statedCount, 10) : null,
+      rows: (Array.isArray(out?.invoices) ? out.invoices : [])
+        .map((r) => ({ invoice: normInvoice(r?.invoice), unit: normUnit(r?.unit), date: r?.date ?? null, total: toNumber(r?.total) }))
+        .filter((r) => r.invoice),
+    };
+    progress.statements++;
+    renderProgress();
+  };
+
+  const readHeaders = async (file, pageNos) => {
+    const images = [];
+    for (const p of pageNos) images.push(await renderRegion(file.pdf, p, 0, HEADER_BAND));
+    const out = await sample.json(headerPrompt(pageNos), { images, modelTier: "quick", signal });
+    const answers = Array.isArray(out) ? out : [];
+    pageNos.forEach((p, i) => {
+      const a = answers.find((x) => Number(x?.page) === p) ?? answers[i] ?? {};
+      const info = { kind: normKind(a.kind), invoice: normInvoice(a.invoice), unit: normUnit(a.unit), first: a.first !== false };
+      if (info.kind === "invoice" && !info.invoice) info.kind = "other";
+      file.pages[p] = info;
+      if (info.kind === "statement" || info.kind === "statement_cont") {
+        progress.statementsFound++;
+        pool.add(() => readStatement(file, p), true);
+      }
+    });
+    progress.headers += pageNos.length;
+    renderProgress();
+  };
+
+  for (const file of state.files) {
+    file.pages = {};
+    file.statements = {};
+    for (let p = 1; p <= file.numPages; p += perCall) {
+      const pageNos = Array.from({ length: Math.min(perCall, file.numPages - p + 1) }, (_, i) => p + i);
+      pool.add(() => readHeaders(file, pageNos));
+    }
+  }
+
+  try {
+    await pool.idle();
+    setStep("stepGroup", "active");
+    state.sections = state.files.flatMap(buildSections);
+    assignFileNames(state.sections);
+    renderResults(state.sections);
+    setStep("stepGroup", "done", "✓");
+    $("meter").style.width = "100%";
+    const secs = Math.round((performance.now() - started) / 1000);
+    const warnings = state.sections.reduce((s, x) => s + x.warnings.length, 0);
+    showMsg("runMsg", warnings ? "warn" : "",
+      `Done in ${secs} s.` + (warnings ? ` ${warnings} item${warnings > 1 ? "s" : ""} to check, marked in yellow.` : " Every invoice matches its statement."));
+    if (!downloads) showMsg("zipMsg", "warn", "This view can't save files. Open the page in claude.ai to download the ZIP.");
+  } catch (err) {
+    showMsg("runMsg", err?.code === "cancelled" ? "" : "bad", errorText(err));
+  } finally {
+    state.running = false;
+    state.ctl = null;
+    refreshButtons();
+  }
+}
+
+function errorText(err) {
+  switch (err?.code) {
+    case "cancelled": return "Stopped.";
+    case "not_granted": return "Claude wasn't allowed for this page. Allow it from the page's Permissions menu, then press Split with Claude again.";
+    case "rate_limited": return "Your Claude usage limit or request rate was reached. Wait a little, then try again.";
+    case "sampling_disabled": return "Claude isn't available for this account.";
+    case "session_expired": return "Your Claude session expired. Sign in again, then retry.";
+    case "images_unavailable": return "This view can't send images to Claude. Open the page in claude.ai.";
+    case "image_rejected": return "Claude couldn't accept a page image. Try splitting the PDF into smaller files.";
+    case "invalid_json":
+    case "empty_completion":
+    case "refused":
+    case "upstream_error": return "One of Claude's answers couldn't be used. Press Split with Claude to try again.";
+    default: return `Something went wrong (${err?.code || err?.message || "unknown"}). Press Split with Claude to try again.`;
+  }
+}
+
+// ---------- Grouping (pure: works on the answers collected above) ----------
+function isOneEditApart(a, b) {
+  if (a === b || Math.abs(a.length - b.length) > 1) return false;
+  let s = 0;
+  while (s < a.length && s < b.length && a[s] === b[s]) s++;
+  let ea = a.length - 1, eb = b.length - 1;
+  while (ea >= s && eb >= s && a[ea] === b[eb]) { ea--; eb--; }
+  return ea - s + 1 <= 1 && eb - s + 1 <= 1;
+}
+
+function buildSections(file) {
+  const sections = [];
+  let section = null;
+  let group = null; // where pages without their own number go
+
+  const openSection = () => {
+    section = { file, statementPages: [], groups: [], rows: [], customer: null, statedCount: null, warnings: [] };
+    sections.push(section);
+  };
+
+  for (let p = 1; p <= file.numPages; p++) {
+    const info = file.pages[p] ?? { kind: "other" };
+    if (info.kind === "statement" || (info.kind === "statement_cont" && !section)) {
+      openSection();
+      section.statementPages.push(p);
+      group = "statement";
+    } else if (info.kind === "statement_cont") {
+      section.statementPages.push(p);
+      group = "statement";
+    } else if (info.kind === "invoice") {
+      if (!section) openSection();
+      const listed = section.statementPages.flatMap((sp) => file.statements[sp]?.rows ?? []).map((r) => r.invoice);
+      const current = group && group !== "statement" ? group : null;
+      let number = info.invoice;
+      if (current?.invoice && !info.first && number !== current.invoice && isOneEditApart(current.invoice, number)) {
+        // A later page of the invoice being read, its number misread by one character
+        // (possibly into another invoice's number, so the statement can't tell).
+        number = current.invoice;
+      } else if (listed.length && !listed.includes(number)) {
+        // A one-character misread: use the statement's number, preferring the invoice being read.
+        const near = listed.filter((n) => isOneEditApart(n, number));
+        if (current && near.includes(current.invoice)) number = current.invoice;
+        else if (near.length === 1) number = near[0];
+      }
+      const existing = section.groups.find((g) => g.invoice === number);
+      if (existing) { existing.pages.push(p); if (!existing.headerUnit) existing.headerUnit = info.unit; group = existing; }
+      else { group = { invoice: number, pages: [p], headerUnit: info.unit }; section.groups.push(group); }
+    } else {
+      // Blank or continuation page without a readable header: it belongs to what came before.
+      if (group === "statement") section.statementPages.push(p);
+      else if (group) group.pages.push(p);
+      else { openSection(); group = { invoice: null, pages: [p], headerUnit: null }; section.groups.push(group); }
+    }
+  }
+
+  for (const s of sections) {
+    const reads = s.statementPages.map((sp) => file.statements[sp]).filter(Boolean);
+    s.customer = reads.find((r) => r.customer)?.customer ?? null;
+    s.statedCount = reads.find((r) => r.statedCount)?.statedCount ?? null;
+    const seen = new Map();
+    for (const r of reads.flatMap((x) => x.rows)) if (!seen.has(r.invoice)) seen.set(r.invoice, r);
+    s.rows = [...seen.values()];
+
+    for (const g of s.groups) {
+      const row = g.invoice ? seen.get(g.invoice) : null;
+      g.row = row ?? null;
+      g.unit = row?.unit ?? g.headerUnit ?? null;
+      g.flags = [];
+      if (!g.invoice) g.flags.push("No invoice number found on this page");
+      else if (s.rows.length && !row) g.flags.push("Not listed on the statement");
+      if (row?.unit && g.headerUnit && row.unit !== g.headerUnit) g.flags.push(`Unit ${row.unit} on statement, ${g.headerUnit} on invoice`);
+    }
+    if (s.statementPages.length) {
+      if (s.statedCount && s.statedCount !== s.rows.length)
+        s.warnings.push(`The statement says ${s.statedCount} invoices, but ${s.rows.length} rows were read. Check the statement pages.`);
+      const found = new Set(s.groups.map((g) => g.invoice));
+      for (const r of s.rows) if (!found.has(r.invoice)) s.warnings.push(`${r.invoice} is on the statement, but no pages were found for it.`);
+    }
+    for (const g of s.groups) for (const f of g.flags) s.warnings.push(`${g.invoice ?? `Page ${g.pages[0]}`}: ${f}.`);
+  }
+  return sections;
+}
+
+// Folder per carrier (first word of the customer, as the main site does) and one file per invoice,
+// named by truck unit; a unit with several invoices gets the invoice number appended.
+function folderFor(section) {
+  const word = (section.customer || "").trim().split(/\s+/)[0] || "";
+  return word.toUpperCase().replace(/[^A-Z0-9-]/g, "") || "UNSORTED";
+}
+function assignFileNames(sections) {
+  const byFolder = new Map();
+  for (const s of sections) {
+    s.folder = folderFor(s);
+    if (!byFolder.has(s.folder)) byFolder.set(s.folder, []);
+    byFolder.get(s.folder).push(s);
+  }
+  for (const [, list] of byFolder) {
+    const used = new Set();
+    const unique = (base) => {
+      let name = `${base}.pdf`, n = 2;
+      while (used.has(name)) name = `${base} (${n++}).pdf`;
+      used.add(name);
+      return name;
+    };
+    const groups = list.flatMap((s) => s.groups);
+    const unitCount = new Map();
+    for (const g of groups) if (g.unit) unitCount.set(g.unit, (unitCount.get(g.unit) ?? 0) + 1);
+    for (const s of list) s.statementFile = s.statementPages.length ? unique("Statement") : null;
+    for (const g of groups) {
+      const base = g.unit ? (unitCount.get(g.unit) > 1 && g.invoice ? `${g.unit}_${g.invoice}` : g.unit) : g.invoice ?? `Page ${g.pages[0]}`;
+      g.fileName = unique(base);
+    }
+  }
+}
+
+// ---------- Results ----------
+const pageRange = (pages) => (pages.length === 1 ? `${pages[0]}` : pages.join(", "));
+
+function cell(text, mono) {
+  const td = document.createElement("td");
+  if (mono) td.className = "mono";
+  td.textContent = text;
+  return td;
+}
+function chip(kind, text) {
+  const td = document.createElement("td");
+  const c = document.createElement("span");
+  c.className = "chip " + kind;
+  c.textContent = text;
+  td.append(c);
+  return td;
+}
+
+function renderResults(sections, example = false) {
+  $("exampleTag").hidden = !example;
+  $("folders").classList.toggle("example", example);
+  const invoices = sections.reduce((s, x) => s + x.groups.length, 0);
+  const pages = sections.reduce((s, x) => s + x.statementPages.length + x.groups.reduce((a, g) => a + g.pages.length, 0), 0);
+  const checks = sections.reduce((s, x) => s + x.warnings.length, 0);
+  const stats = [[new Set(sections.map((s) => s.folder)).size, "carrier folders"], [invoices, "invoices"], [pages, "pages placed"], [checks, "to check"]];
+  $("summary").replaceChildren(...stats.map(([n, label]) => {
+    const d = document.createElement("div"); d.className = "stat";
+    const b = document.createElement("b"); b.textContent = n;
+    const s = document.createElement("span"); s.textContent = label;
+    d.append(b, s); return d;
+  }));
+
+  $("folders").replaceChildren(...sections.map((s) => {
+    const box = document.createElement("article");
+    box.className = "folder";
+    const head = document.createElement("div"); head.className = "folder-head";
+    const h = document.createElement("h3");
+    const code = document.createElement("code"); code.textContent = `${s.folder}/`;
+    h.append(code, document.createTextNode(s.customer || "No statement"));
+    const count = document.createElement("span");
+    const expected = s.statedCount ?? (s.rows.length || null);
+    count.className = "count " + (s.warnings.length ? "check" : "ok");
+    count.textContent = expected ? `${s.groups.length} of ${expected} invoices` : `${s.groups.length} invoices`;
+    head.append(h, count);
+
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const hr = document.createElement("tr");
+    for (const t of ["Invoice", "Unit", "Pages", "File", ""]) { const th = document.createElement("th"); th.textContent = t; hr.append(th); }
+    thead.append(hr);
+    const tbody = document.createElement("tbody");
+    if (s.statementPages.length) {
+      const tr = document.createElement("tr");
+      tr.append(cell("Statement"), cell("–", true), cell(pageRange(s.statementPages), true), cell(s.statementFile, true), chip("stmt", "summary"));
+      tbody.append(tr);
+    }
+    for (const g of s.groups) {
+      const tr = document.createElement("tr");
+      tr.append(cell(g.invoice ?? "–", true), cell(g.unit ?? "–", true), cell(pageRange(g.pages), true), cell(g.fileName, true),
+        g.flags.length ? chip("check", "check") : chip("ok", "ok"));
+      tbody.append(tr);
+    }
+    table.append(thead, tbody);
+    const scroll = document.createElement("div"); scroll.className = "table-scroll"; scroll.append(table);
+    box.append(head, scroll);
+    if (s.warnings.length) {
+      const ul = document.createElement("ul"); ul.className = "warnings";
+      for (const w of s.warnings) { const li = document.createElement("li"); li.textContent = w; ul.append(li); }
+      box.append(ul);
+    }
+    return box;
+  }));
+}
+
+// An example of the result, shown until the first run.
+function exampleSections() {
+  const g = (invoice, unit, pages, flags = []) => ({ invoice, unit, pages, flags, fileName: "" });
+  const s = { folder: "EXAMPLE", customer: "Example Carrier", statedCount: 4, statementPages: [1], rows: [1, 2, 3, 4],
+    groups: [g("INV-1041", "512", [2, 3]), g("INV-1052", "530", [4]), g("INV-1058", "512", [5]), g("INV-1060", "AB1207", [6, 7])],
+    warnings: [] };
+  s.statementFile = "Statement.pdf";
+  s.groups[0].fileName = "512_INV-1041.pdf"; s.groups[1].fileName = "530.pdf"; s.groups[2].fileName = "512_INV-1058.pdf"; s.groups[3].fileName = "AB1207.pdf";
+  return [s];
+}
+renderResults(exampleSections(), true);
+
+// ---------- ZIP ----------
+async function downloadZip() {
+  if (!state.sections || !downloads) return;
+  $("zipBtn").disabled = true;
+  showMsg("zipMsg", "", "Building the ZIP…");
+  try {
+    const zip = new JSZip();
+    const sources = new Map();
+    const source = async (file) => {
+      if (!sources.has(file)) sources.set(file, await PDFLib.PDFDocument.load(file.bytes, { ignoreEncryption: true }));
+      return sources.get(file);
+    };
+    const addPdf = async (file, pages, path) => {
+      const src = await source(file);
+      const out = await PDFLib.PDFDocument.create();
+      const copied = await out.copyPages(src, pages.map((p) => p - 1));
+      copied.forEach((pg) => out.addPage(pg));
+      zip.file(path, await out.save());
+    };
+    for (const s of state.sections) {
+      if (s.statementFile) await addPdf(s.file, s.statementPages, `${s.folder}/${s.statementFile}`);
+      for (const g of s.groups) await addPdf(s.file, g.pages, `${s.folder}/${g.fileName}`);
+    }
+    const folders = [...new Set(state.sections.map((s) => s.folder))];
+    const blob = await zip.generateAsync({ type: "blob" });
+    await downloads.save({ filename: folders.length === 1 ? `${folders[0]}_Invoices.zip` : "Invoices_by_carrier.zip", data: blob });
+    showMsg("zipMsg", "", "ZIP saved.");
+  } catch (err) {
+    showMsg("zipMsg", err?.code === "declined" ? "" : "bad",
+      err?.code === "declined" ? "Download cancelled." : `The ZIP couldn't be saved (${err?.code || err?.message || "error"}).`);
+  } finally {
+    refreshButtons();
+  }
+}
+
+$("runBtn").addEventListener("click", run);
+$("stopBtn").addEventListener("click", () => state.ctl?.abort());
+$("zipBtn").addEventListener("click", downloadZip);
+</script>
