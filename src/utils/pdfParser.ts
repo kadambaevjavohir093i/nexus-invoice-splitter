@@ -81,6 +81,32 @@ function extractUnitNumber(text: string): string {
   return m ? m[1] : '';
 }
 
+// Dollar amounts may carry thousands separators: "$1,264.75".
+const parseAmount = (s: string) => parseFloat(s.replace(/,/g, ''));
+
+/**
+ * A statement page lists several invoices, or carries the statement's totals
+ * block (on its last page). Invoice pages show a single invoice number.
+ */
+function looksLikeStatementPage(text: string): boolean {
+  const listed = new Set([...text.matchAll(INVOICE_NUMBER_RE_G)].map(m => m[1]));
+  return listed.size >= 2 || /\btotals\b|paid to date|total amount/i.test(text);
+}
+
+/** True when two invoice numbers differ by exactly one inserted, deleted or changed character. */
+function isOneEditApart(a: string, b: string): boolean {
+  if (a === b || Math.abs(a.length - b.length) > 1) return false;
+  let start = 0;
+  while (start < a.length && start < b.length && a[start] === b[start]) start++;
+  let endA = a.length - 1;
+  let endB = b.length - 1;
+  while (endA >= start && endB >= start && a[endA] === b[endB]) {
+    endA--;
+    endB--;
+  }
+  return endA - start + 1 <= 1 && endB - start + 1 <= 1;
+}
+
 /**
  * True when a PDF actually carries text we can parse.
  *
@@ -99,24 +125,40 @@ export function hasExtractableText(pagesText: string[]): boolean {
 
 /**
  * Parses page texts and detects invoices, grouping multi-page invoices dynamically.
+ * `ocrPageIndexes` lists pages whose text came from OCR rather than the PDF's text layer.
  */
 export async function parsePdfInvoices(
   pdfBytes: Uint8Array,
-  pagesText: string[]
+  pagesText: string[],
+  { ocrPageIndexes = [] }: { ocrPageIndexes?: number[] } = {}
 ): Promise<InvoiceGroup[]> {
   const invoices: InvoiceGroup[] = [];
   const numPages = pagesText.length;
-  
+
   if (numPages === 0) return [];
 
   // Work on repaired text throughout so split invoice-number tokens still match.
   const normalizedPages = pagesText.map(t => normalizeInvoiceNumbers(t || ''));
+  const ocrPageSet = new Set(ocrPageIndexes);
 
-  // Check if Page 1 is a Statement summarizing the individual invoices
+  // Check if Page 1 is a Statement summarizing the individual invoices. Judge it
+  // by structure too, not only by the "Balance Due" heading: OCR can misread that
+  // small label, and "TOTALS" only appears on the last page of a long statement.
   const page1Text = normalizedPages[0] || '';
-  const isPage1Statement = 
-    page1Text.toLowerCase().includes('statement') && 
-    (page1Text.toLowerCase().includes('balance due') || page1Text.toLowerCase().includes('totals'));
+  const isPage1Statement =
+    page1Text.toLowerCase().includes('statement') &&
+    (page1Text.toLowerCase().includes('balance due') || looksLikeStatementPage(page1Text));
+
+  // A statement listing many invoices runs over several pages; keep them all.
+  const statementPageIdx: number[] = [];
+  if (isPage1Statement) {
+    statementPageIdx.push(0);
+    while (statementPageIdx.length < numPages && looksLikeStatementPage(normalizedPages[statementPageIdx.length])) {
+      statementPageIdx.push(statementPageIdx.length);
+    }
+  }
+  const statementPageSet = new Set(statementPageIdx);
+  const statementText = statementPageIdx.map(i => normalizedPages[i]).join('\n');
   
   interface StatementRow {
     invoiceNumber: string;
@@ -154,23 +196,23 @@ export async function parsePdfInvoices(
     // Regex to capture invoice table rows
     // Standard row looks like: "INV-2675 — 2025 FREIGHTLINER Cascadia 3AKJHHDR5SSWA6179 · Unit: 1215 6/23/2026 $577.56"
     // Let's scan for all invoice-number patterns and capture surrounding info
-    const invoiceMatches = [...page1Text.matchAll(INVOICE_NUMBER_RE_G)];
+    const invoiceMatches = [...statementText.matchAll(INVOICE_NUMBER_RE_G)];
     for (let j = 0; j < invoiceMatches.length; j++) {
       const match = invoiceMatches[j];
       const invNum = match[1];
       const index = match.index || 0;
-      
+
       // Look ahead context to find vehicle, date, and amount
-      const nextMatchIndex = j < invoiceMatches.length - 1 ? invoiceMatches[j + 1].index : page1Text.length;
-      const context = page1Text.substring(index, Math.min(index + 300, nextMatchIndex || page1Text.length));
+      const nextMatchIndex = j < invoiceMatches.length - 1 ? invoiceMatches[j + 1].index : statementText.length;
+      const context = statementText.substring(index, Math.min(index + 300, nextMatchIndex || statementText.length));
 
       // Extract Date (MM/DD/YYYY)
       const dateMatch = context.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
       const date = dateMatch ? dateMatch[1] : '';
 
-      // Extract Total (e.g., "$1372.76" or "$577.56")
-      const totalMatch = context.match(/\$(\d+\.\d{2})/);
-      const total = totalMatch ? parseFloat(totalMatch[1]) : 0;
+      // Extract Total (e.g., "$1372.76" or "$1,264.75")
+      const totalMatch = context.match(/\$([\d,]+\.\d{2})/);
+      const total = totalMatch ? parseAmount(totalMatch[1]) : 0;
 
       // Extract Unit Number if present in context
       const unitNumber = extractUnitNumber(context);
@@ -205,14 +247,31 @@ export async function parsePdfInvoices(
     }
   }
 
+  const statementNumbers = statementInvoices.map(s => s.invoiceNumber);
+
+  /**
+   * OCR occasionally misreads one character of an invoice number ("9954" read
+   * as "9934"), which would split one invoice across two files. When an OCR'd
+   * number isn't on the statement but is one edit away from a number that is,
+   * use the statement's number — preferring the invoice currently being read,
+   * so its continuation pages stay with it.
+   */
+  const snapToStatementNumber = (invNum: string, currentNumber?: string): string => {
+    if (statementNumbers.length === 0 || statementNumbers.includes(invNum)) return invNum;
+    const near = statementNumbers.filter(n => isOneEditApart(n, invNum));
+    if (currentNumber && near.includes(currentNumber)) return currentNumber;
+    return near.length === 1 ? near[0] : invNum;
+  };
+
   let currentGroup: InvoiceGroup | null = null;
 
   for (let i = 0; i < numPages; i++) {
     const text = normalizedPages[i];
     const lowercaseText = text.toLowerCase();
-    
-    // Page 1 is the statement summary page
-    if (i === 0 && isPage1Statement) {
+
+    // The statement summary: page 1, plus any continuation pages of a long statement
+    if (statementPageSet.has(i)) {
+      if (i > 0) continue; // already included in the statement group's pages
       const customer = statementCustomer;
       const fileDateSuffix = periodStr ? ` (${periodStr.replace(/\//g, '-')})` : '';
       const statementGroup: InvoiceGroup = {
@@ -222,7 +281,7 @@ export async function parsePdfInvoices(
         vehicle: 'All Invoices Summary',
         date: 'Statement Period',
         total: statementInvoices.reduce((sum, item) => sum + item.total, 0),
-        pages: [0],
+        pages: [...statementPageIdx],
         filename: `Statement${customer ? ` - ${customer}` : ''}${fileDateSuffix}.pdf`,
         isSelected: true,
         isStatement: true
@@ -242,7 +301,10 @@ export async function parsePdfInvoices(
       lowercaseText.includes('invoice') || lowercaseText.includes('inv-') || lowercaseText.includes('so-');
 
     if (invMatch && hasInvoiceHeader) {
-      const invNum = invMatch[1];
+      // Text-layer numbers are exact; only OCR'd numbers are corrected.
+      const invNum = ocrPageSet.has(i)
+        ? snapToStatementNumber(invMatch[1], currentGroup?.isStatement ? undefined : currentGroup?.invoiceNumber)
+        : invMatch[1];
 
       // Multi-page invoices often repeat the invoice number on every page.
       // If we've already opened a group for this number, this page is a
@@ -282,8 +344,8 @@ export async function parsePdfInvoices(
         date = dateMatch ? dateMatch[1] : '';
 
         // Total
-        const totalMatch = text.match(/Grand Total\s*\$?(\d+\.\d{2})/i) || text.match(/REMAINING BALANCE\s*\$?(\d+\.\d{2})/i) || text.match(/Total:\s*\$?(\d+\.\d{2})/i);
-        total = totalMatch ? parseFloat(totalMatch[1]) : 0;
+        const totalMatch = text.match(/Grand Total\s*\$?([\d,]+\.\d{2})/i) || text.match(/REMAINING BALANCE\s*\$?([\d,]+\.\d{2})/i) || text.match(/Total:\s*\$?([\d,]+\.\d{2})/i);
+        total = totalMatch ? parseAmount(totalMatch[1]) : 0;
       }
 
       // Prefer the statement's unit: it sits alone in a clean table cell, while
