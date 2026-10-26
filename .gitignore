@@ -6,3 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
+# OCR engine files, copied from node_modules by scripts/copy-ocr-assets.mjs
+public/ocr/

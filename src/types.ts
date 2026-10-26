@@ -20,6 +20,7 @@ export interface UploadedFile {
   bytes: Uint8Array;
   pagesText: string[];
   invoices: InvoiceGroup[];
+  usedOcr?: boolean; // some pages had no text layer and were read with OCR
 }
 
 export type FilenamePattern = 

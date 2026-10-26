@@ -28,6 +28,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import JSZip from 'jszip';
 import { InvoiceGroup, UploadedFile } from './types';
 import { extractTextFromPdf, hasExtractableText, parsePdfInvoices, splitPdfPages } from './utils/pdfParser';
+import { ocrPages, pagesNeedingOcr } from './utils/ocr';
 import { generateSampleInvoicePdf } from './utils/sampleGenerator';
 
 export default function App() {
@@ -45,6 +46,8 @@ export default function App() {
   
   // App Controls State
   const [status, setStatus] = useState<'idle' | 'parsing' | 'ready' | 'processing' | 'error'>('idle');
+  // Live status line while scanned pages are being read with OCR (can take a while).
+  const [parseProgress, setParseProgress] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
@@ -288,11 +291,28 @@ export default function App() {
         const bytes = new Uint8Array(arrayBuffer);
 
         // Extract text from the PDF pages
-        const extractedText = await extractTextFromPdf(bytes);
+        let extractedText = await extractTextFromPdf(bytes);
 
-        // A PDF whose text was flattened to outlines or scanned to images has
-        // nothing to parse. Reject it with a clear reason rather than emitting
-        // one meaningless "Page N" entry per page.
+        // Scanned pages, or PDFs "printed" with their text flattened into
+        // outlines, have no text layer. Read those pages with OCR instead.
+        let usedOcr = false;
+        const ocrTargets = pagesNeedingOcr(extractedText);
+        if (ocrTargets.length > 0) {
+          try {
+            const ocrText = await ocrPages(bytes, ocrTargets, (done, total) =>
+              setParseProgress(`Scanned PDF detected — reading ${file.name} with OCR (page ${Math.min(done + 1, total)} of ${total})…`)
+            );
+            extractedText = extractedText.map((text, idx) => ocrText.get(idx) ?? text);
+            usedOcr = [...ocrText.values()].some(text => text.trim().length > 0);
+          } catch (ocrError) {
+            console.error(`OCR failed for ${file.name}:`, ocrError);
+          } finally {
+            setParseProgress(null);
+          }
+        }
+
+        // Nothing readable even after OCR: reject with a clear reason rather
+        // than emitting one meaningless "Page N" entry per page.
         if (!hasExtractableText(extractedText)) {
           noTextFiles.push(file.name);
           continue;
@@ -308,7 +328,8 @@ export default function App() {
           totalPages: extractedText.length,
           bytes: bytes,
           pagesText: extractedText,
-          invoices: parsedInvoices
+          invoices: parsedInvoices,
+          usedOcr
         };
 
         newUploadedFiles.push(newFile);
@@ -318,14 +339,12 @@ export default function App() {
       }
     }
 
-    // A PDF that was "printed" to PDF has no text layer at all. Spell out the
-    // cause and the remedy — the file looks normal on screen, so otherwise this
-    // is impossible to diagnose from the app.
+    // Even OCR found nothing to read: the pages are blank, or the scan is too
+    // faint or low-resolution. Spell out the cause and the remedy.
     const noTextAdvice =
-      'This PDF has no text layer — its text was flattened into images or outlines, ' +
-      'which happens when a statement is printed through a virtual PDF printer ' +
-      '(e.g. PDF-XChange, "Microsoft Print to PDF") instead of being saved. ' +
-      'Download or save the original PDF from your billing system and upload that file.';
+      'No readable text was found in this PDF, even after scanning it with OCR. ' +
+      'The pages may be blank, very faint, or too low-resolution. ' +
+      'Try a clearer scan, or download the original PDF from your billing system and upload that file.';
 
     if (newUploadedFiles.length === 0) {
       setErrorMessage(
@@ -808,7 +827,7 @@ export default function App() {
                     <RefreshCw className="w-10 h-10 text-red-500 animate-spin" />
                   </div>
                   <h2 className="text-xl font-bold mb-1 text-neutral-100">Reading & Decoding Master File</h2>
-                  <p className="text-sm text-neutral-400 max-w-sm mb-4">Scanning PDF text structure, isolating distinct invoice headers, and aligning pages automatically...</p>
+                  <p className="text-sm text-neutral-400 max-w-sm mb-4">{parseProgress ?? 'Scanning PDF text structure, isolating distinct invoice headers, and aligning pages automatically...'}</p>
                   <div className="w-48 bg-neutral-800 h-2 rounded-full overflow-hidden">
                     <div className="bg-red-600 h-full rounded-full animate-infinite-loading" style={{ width: '60%' }}></div>
                   </div>
@@ -882,7 +901,7 @@ export default function App() {
                     <RefreshCw className="w-8 h-8 text-red-500 animate-spin" />
                   </div>
                   <h3 className="text-sm font-bold text-neutral-100">Parsing Additional PDF Document...</h3>
-                  <p className="text-xs text-neutral-400 max-w-xs mt-1">Decoding text structure and extracting invoice pages automatically. Please wait...</p>
+                  <p className="text-xs text-neutral-400 max-w-xs mt-1">{parseProgress ?? 'Decoding text structure and extracting invoice pages automatically. Please wait...'}</p>
                 </div>
               )}
 
@@ -942,8 +961,15 @@ export default function App() {
                         
                         <div className="flex items-center justify-between mt-2.5 text-[10px] text-neutral-400 font-medium font-mono">
                           <span>{file.totalPages} pgs · {(file.size / (1024 * 1024)).toFixed(2)} MB</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${selectedCount > 0 ? 'bg-neutral-800 text-neutral-300 border border-neutral-700' : 'bg-neutral-800 text-neutral-500'}`}>
-                            {selectedCount}/{file.invoices.length} split
+                          <span className="flex items-center gap-1">
+                            {file.usedOcr && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-950 text-amber-400 border border-amber-900" title="Read with OCR — check invoice and unit numbers">
+                                OCR
+                              </span>
+                            )}
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${selectedCount > 0 ? 'bg-neutral-800 text-neutral-300 border border-neutral-700' : 'bg-neutral-800 text-neutral-500'}`}>
+                              {selectedCount}/{file.invoices.length} split
+                            </span>
                           </span>
                         </div>
                       </div>
@@ -991,6 +1017,12 @@ export default function App() {
                       <p className="text-[11px] text-neutral-400 font-medium">
                         {(fileSize / (1024 * 1024)).toFixed(2)} MB · {totalPages} Pages Detected · <span className="font-bold text-neutral-200">{computedInvoices.length} extracted files</span>
                       </p>
+                      {uploadedFiles.find(f => f.id === selectedFileId)?.usedOcr && (
+                        <p className="text-[11px] text-amber-400 font-semibold mt-0.5 flex items-center gap-1" id="ocr_notice">
+                          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                          Scanned PDF read with OCR — check invoice and unit numbers before downloading.
+                        </p>
+                      )}
                     </div>
                   </div>
 
