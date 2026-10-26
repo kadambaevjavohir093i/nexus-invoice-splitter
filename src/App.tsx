@@ -299,8 +299,9 @@ export default function App() {
         const ocrTargets = pagesNeedingOcr(extractedText);
         if (ocrTargets.length > 0) {
           try {
-            const ocrText = await ocrPages(bytes, ocrTargets, (done, total) =>
-              setParseProgress(`Scanned PDF detected — reading ${file.name} with OCR (page ${Math.min(done + 1, total)} of ${total})…`)
+            // Pages are read in parallel, so report how many are done rather than "page N".
+            const ocrText = await ocrPages(bytes, ocrTargets, extractedText, (done, total) =>
+              setParseProgress(`Scanned PDF detected — reading ${file.name} with OCR (${done} of ${total} pages done)…`)
             );
             extractedText = extractedText.map((text, idx) => ocrText.get(idx) ?? text);
             usedOcr = [...ocrText.values()].some(text => text.trim().length > 0);
