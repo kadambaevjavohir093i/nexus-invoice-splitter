@@ -51,9 +51,10 @@ function normalizeInvoiceNumbers(text: string): string {
     // "INV - 2845" / "INV- 2845" -> "INV-2845"
     .replace(/\b(INV|SO)\s*-\s*/gi, (_m, prefix: string) => `${prefix.toUpperCase()}-`)
     // "SO-0000006 4" -> "SO-00000064" (digits split across text items).
-    // Only single-space splits are joined, so table columns separated by wider
-    // gaps (e.g. "INV-2845   —   ... 7/15/2026") are never merged by accident.
-    .replace(/\b(INV|SO)-(\d+(?: \d+)+)/gi, (whole, prefix: string, digits: string) => {
+    // Only short single-space fragments are joined, so neither table columns
+    // separated by wider gaps ("INV-2845   —   ... 7/15/2026") nor a year that
+    // follows with a single space in OCR text ("INV-9758 2024") is merged in.
+    .replace(/\b(INV|SO)-(\d+(?: \d{1,2})+)(?=\s|$)/gi, (whole, prefix: string, digits: string) => {
       const joined = digits.replace(/ /g, '');
       return joined.length <= 12 ? `${prefix.toUpperCase()}-${joined}` : whole;
     });
@@ -84,17 +85,32 @@ function extractUnitNumber(text: string): string {
 // Dollar amounts may carry thousands separators: "$1,264.75".
 const parseAmount = (s: string) => parseFloat(s.replace(/,/g, ''));
 
+/** Distinct invoice numbers mentioned in a page's text. */
+export function listedInvoiceNumbers(text: string): string[] {
+  return [...new Set([...normalizeInvoiceNumbers(text).matchAll(INVOICE_NUMBER_RE_G)].map(m => m[1]))];
+}
+
 /**
  * A statement page lists several invoices, or carries the statement's totals
  * block (on its last page). Invoice pages show a single invoice number.
  */
-function looksLikeStatementPage(text: string): boolean {
-  const listed = new Set([...text.matchAll(INVOICE_NUMBER_RE_G)].map(m => m[1]));
-  return listed.size >= 2 || /\btotals\b|paid to date|total amount/i.test(text);
+export function looksLikeStatementPage(text: string): boolean {
+  return listedInvoiceNumbers(text).length >= 2 || /\btotals\b|paid to date|total amount/i.test(text);
+}
+
+/**
+ * True when a batch's first page is the statement summarising its invoices.
+ * Judged by structure too, not only by the "Balance Due" heading: OCR can
+ * misread that small label, and "TOTALS" only appears on a long statement's
+ * last page.
+ */
+export function isStatementFirstPage(text: string): boolean {
+  const lower = text.toLowerCase();
+  return lower.includes('statement') && (lower.includes('balance due') || looksLikeStatementPage(text));
 }
 
 /** True when two invoice numbers differ by exactly one inserted, deleted or changed character. */
-function isOneEditApart(a: string, b: string): boolean {
+export function isOneEditApart(a: string, b: string): boolean {
   if (a === b || Math.abs(a.length - b.length) > 1) return false;
   let start = 0;
   while (start < a.length && start < b.length && a[start] === b[start]) start++;
@@ -141,13 +157,9 @@ export async function parsePdfInvoices(
   const normalizedPages = pagesText.map(t => normalizeInvoiceNumbers(t || ''));
   const ocrPageSet = new Set(ocrPageIndexes);
 
-  // Check if Page 1 is a Statement summarizing the individual invoices. Judge it
-  // by structure too, not only by the "Balance Due" heading: OCR can misread that
-  // small label, and "TOTALS" only appears on the last page of a long statement.
+  // Check if Page 1 is a Statement summarizing the individual invoices
   const page1Text = normalizedPages[0] || '';
-  const isPage1Statement =
-    page1Text.toLowerCase().includes('statement') &&
-    (page1Text.toLowerCase().includes('balance due') || looksLikeStatementPage(page1Text));
+  const isPage1Statement = isStatementFirstPage(page1Text);
 
   // A statement listing many invoices runs over several pages; keep them all.
   const statementPageIdx: number[] = [];
@@ -256,11 +268,18 @@ export async function parsePdfInvoices(
    * use the statement's number — preferring the invoice currently being read,
    * so its continuation pages stay with it.
    */
-  const snapToStatementNumber = (invNum: string, currentNumber?: string): string => {
+  const snapToStatementNumber = (invNum: string, pageText: string, currentNumber?: string): string => {
     if (statementNumbers.length === 0 || statementNumbers.includes(invNum)) return invNum;
     const near = statementNumbers.filter(n => isOneEditApart(n, invNum));
     if (currentNumber && near.includes(currentNumber)) return currentNumber;
-    return near.length === 1 ? near[0] : invNum;
+    if (near.length === 1) return near[0];
+
+    // OCR can also attach the wrong neighbouring number to "INV-", such as the
+    // shop's ZIP code. If the page header shows exactly one statement number as
+    // a standalone token ("RECEIPT 9647"), that is the invoice's number.
+    const header = pageText.split('\n').slice(0, 8).join(' ');
+    const shown = statementNumbers.filter(n => new RegExp(`(^|\\D)${n.split('-')[1]}(\\D|$)`).test(header));
+    return shown.length === 1 ? shown[0] : invNum;
   };
 
   let currentGroup: InvoiceGroup | null = null;
@@ -303,7 +322,7 @@ export async function parsePdfInvoices(
     if (invMatch && hasInvoiceHeader) {
       // Text-layer numbers are exact; only OCR'd numbers are corrected.
       const invNum = ocrPageSet.has(i)
-        ? snapToStatementNumber(invMatch[1], currentGroup?.isStatement ? undefined : currentGroup?.invoiceNumber)
+        ? snapToStatementNumber(invMatch[1], text, currentGroup?.isStatement ? undefined : currentGroup?.invoiceNumber)
         : invMatch[1];
 
       // Multi-page invoices often repeat the invoice number on every page.
