@@ -70,6 +70,7 @@
   .btn.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
   .btn:disabled { opacity: .45; cursor: not-allowed; }
   .btn.grow { flex: 1 1 auto; }
+  .btn.small { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; }
 
   .steps { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
   .step { display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
@@ -131,7 +132,13 @@
 
   <div class="grid">
     <section class="panel" aria-labelledby="inputTitle">
-      <div class="label" id="inputTitle">Statement batches</div>
+      <div class="bar">
+        <div class="label" id="inputTitle">Statement batches</div>
+        <button class="btn small" id="resetBtn" disabled title="Remove all PDFs and results, ready for the next batch">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+          Start over
+        </button>
+      </div>
       <label class="drop" id="drop">
         <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple>
         <strong>Drop PDF batches here</strong>
@@ -255,6 +262,34 @@ function refreshButtons() {
   $("runBtn").disabled = state.running || !sample || state.files.length === 0;
   $("stopBtn").hidden = !state.running;
   $("zipBtn").disabled = state.running || !state.sections || !downloads;
+  $("resetBtn").disabled = !state.running && state.files.length === 0 && !state.sections;
+}
+
+// Start over: drop every PDF and result so the page is ready for the next batch.
+// During a run it stops Claude first; the run then finishes by clearing the page.
+const defaultUsageNote = $("usageNote").textContent;
+function startOver() {
+  if (state.running) {
+    state.resetAfterStop = true;
+    state.ctl?.abort();
+    return;
+  }
+  clearAll();
+}
+function clearAll() {
+  for (const f of state.files) f.pdf?.destroy();
+  state.files = [];
+  state.sections = null;
+  state.resetAfterStop = false;
+  fileInput.value = "";
+  renderFiles();
+  showMsg("runMsg", "", "");
+  showMsg("zipMsg", "", "");
+  for (const id of ["stepHeaders", "stepStatements", "stepGroup"]) setStep(id, "", "–");
+  $("meter").style.width = "0";
+  $("usageNote").textContent = defaultUsageNote;
+  renderResults(exampleSections(), true);
+  refreshButtons();
 }
 
 function showMsg(id, kind, text) {
@@ -454,6 +489,7 @@ async function run() {
     state.running = false;
     state.ctl = null;
     refreshButtons();
+    if (state.resetAfterStop) clearAll();
   }
 }
 
@@ -712,5 +748,6 @@ async function downloadZip() {
 
 $("runBtn").addEventListener("click", run);
 $("stopBtn").addEventListener("click", () => state.ctl?.abort());
+$("resetBtn").addEventListener("click", startOver);
 $("zipBtn").addEventListener("click", downloadZip);
 </script>
